@@ -14,7 +14,7 @@ public class RingReceiver extends BroadcastReceiver {
             if (i == null || !ACT.equals(i.getAction())) return;
             String name = i.getStringExtra("name");
             String line = i.getStringExtra("line");
-            if (name == null || name.length() == 0) name = Shared.cfg(c, "name", "祁渊");
+            if (name == null || name.length() == 0) name = Shared.cfg(c, "name", "AI");
             if (line == null) line = "";
             String id = String.valueOf(System.currentTimeMillis());
             Shared.ensureDir();

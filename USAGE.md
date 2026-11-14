@@ -14,7 +14,21 @@ https://github.com/Lune796/NightBell/releases/latest/download/NightBell.apk
 https://gh-proxy.com/https://github.com/Lune796/NightBell/releases/latest/download/NightBell.apk
 ```
 
+上面这个加速要是也打不开，再换这两个：
+
+```
+https://ghfast.top/https://github.com/Lune796/NightBell/releases/latest/download/NightBell.apk
+```
+
+```
+https://kkgithub.com/Lune796/NightBell/releases/latest/download/NightBell.apk
+```
+
 安装包约 252MB，因为本地语音识别模型直接打在包里了，装完不用再下模型。只支持 arm64（现在绝大多数手机都是），系统要求安卓 11 以上。
+
+## 关于许可
+
+本项目用 MIT 协议发布：**随便改、随便用、随便分发，商用也行**，不用来问，不用署名到你的作品里，只要求把原来的版权声明和许可文本留着。源码在 `https://github.com/Lune796/NightBell`，想怎么改都行。
 
 ## 二、安装
 

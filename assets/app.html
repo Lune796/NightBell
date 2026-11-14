@@ -1,0 +1,2042 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content">
+<title>夜铃 · 打给AI</title>
+<style>
+/*~ 夜铃 · 主题 */
+:root{
+  --bg1:#f6f6f8; --bg2:#f1f1f3; --bg3:#eaeaea;
+  --ink:#2c2c31; --ink-strong:#0f0f12; --ink-soft:#55555e; --ink-faint:rgba(44,44,49,.56);
+  --p1:#141418; --p2:#2b2b33; --p3:#4c4c58;
+  --p-soft:#e8e8ec; --p-bg:#f0f0f3;
+  --accent1:#141418; --accent2:#2b2b33;
+  --card:rgba(255,255,255,.72); --card-glass:rgba(255,255,255,.5); --card-solid:#fff; --card-strong:#fff; --card-input:#f2f2f5;
+  --border:rgba(20,20,26,.16);
+  --shadow:rgba(20,20,26,.07); --shadow-strong:rgba(20,20,26,.16); --shadow-deep:rgba(20,20,26,.2);
+  --glow:rgba(20,20,26,.06);
+}
+body[data-mode="dark"]{
+  --bg1:#0f0f11; --bg2:#141417; --bg3:#18181c;
+  --ink:#a9a9b4; --ink-strong:#f0f0f4; --ink-soft:#8b8b96; --ink-faint:rgba(169,169,180,.52);
+  --p1:#f0f0f4; --p2:#c9c9d2; --p3:#8b8b96;
+  --p-soft:#232329; --p-bg:#282830;
+  --accent1:#f0f0f4; --accent2:#d0d0d8;
+  --card:rgba(255,255,255,.05); --card-glass:rgba(255,255,255,.07); --card-solid:#1b1b20; --card-strong:#222229; --card-input:#1d1d23;
+  --border:rgba(255,255,255,.16);
+  --shadow:rgba(0,0,0,.3); --shadow-strong:rgba(0,0,0,.45); --shadow-deep:rgba(0,0,0,.55);
+  --glow:rgba(255,255,255,.05);
+}
+body.custom-bg{ background: var(--customBg, none) center/cover no-repeat fixed !important; }
+*{ margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+body{
+  font-family:-apple-system,"PingFang SC","HarmonyOS Sans",sans-serif;
+  background:var(--bg1);
+  height:100vh; height:100dvh; display:flex; justify-content:center; align-items:center;
+  color:var(--ink); overflow:hidden; user-select:none; transition:background .4s;
+}
+.phone{ width:min(420px,100vw); height:100dvh; position:relative; z-index:1; }
+.screen{ position:absolute; inset:0; display:flex; flex-direction:column; transition:opacity .35s,transform .35s; }
+.screen.hidden{ opacity:0; pointer-events:none; transform:translateY(10px); }
+
+/*~ 拨号页 */
+#dial{ padding:16px 22px 18px; gap:8px; }
+.dial-top{ display:flex; align-items:center; justify-content:space-between; }
+.dial-top::before{ content:"NIGHT BELL"; font-size:9px; font-weight:600; letter-spacing:6px; color:var(--ink-soft); }
+.gear{ width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:9px; background:transparent; border:1px solid var(--border); color:var(--ink-soft); cursor:pointer; }
+.gear svg{ width:16px; height:16px; }
+
+/*~ 通话记录 · 横向卡片 */
+.calls-panel{ display:flex; flex-direction:column; justify-content:flex-start; align-items:stretch; gap:8px; overflow-y:auto; overflow-x:hidden; height:auto; max-height:none; flex:1 1 auto; min-height:0; padding:2px 0; scrollbar-width:none; }
+.calls-panel::-webkit-scrollbar{ display:none; }
+.calls-empty{ width:100%; display:flex; align-items:center; justify-content:center; font-size:10px; letter-spacing:3px; color:var(--ink-faint); }
+.call-item{ flex:0 0 auto; align-self:stretch; max-height:66px; min-width:0; max-width:100%; width:100%; overflow:hidden; display:flex; align-items:center; gap:8px; height:66px; padding:0 16px; border:1px solid var(--border); border-radius:14px; background:var(--card); cursor:pointer; }
+.call-item:active{ opacity:.5; }
+.call-item .ci-main{ flex:1 1 auto; min-width:0; overflow:hidden; }
+.call-item .ci-name{ font-size:15px; font-weight:500; color:var(--ink-strong); letter-spacing:.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.call-item .ci-sub{ font-size:11px; color:var(--ink-soft); margin-top:4px; letter-spacing:.4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.call-item .ci-date{ display:none; }
+.call-item .ci-del{ margin-left:auto; width:26px; height:26px; border:none; background:transparent; color:var(--ink-soft); font-size:16px; line-height:1; padding:0; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+#dial.kp-collapsed .calls-panel{ flex-direction:column; height:auto; max-height:none; flex:1 1 auto; min-height:0; overflow-y:auto; overflow-x:hidden; padding:0; }
+#dial.kp-collapsed .call-item{ height:60px; max-height:60px; width:100%; border-radius:12px; }
+#dial.kp-collapsed .ci-del{ margin-left:auto; }
+
+/*~ 号码与键盘 */
+.dial-body{ position:relative; flex:0 0 auto; display:flex; flex-direction:column; justify-content:flex-end; min-height:0; }
+#dial.kp-collapsed .keypad, #dial.kp-collapsed .actions{ display:none; }
+.number-display{ text-align:center; flex:0 0 auto; height:44px; box-sizing:border-box; padding:0; margin:0; display:flex; align-items:center; justify-content:center; background:transparent; overflow:hidden; }
+.num-text{ font-size:34px; font-weight:300; letter-spacing:6px; font-variant-numeric:tabular-nums; color:var(--ink-strong); }
+.num-text.placeholder{ font-size:12px; font-weight:500; letter-spacing:4px; color:var(--ink-faint); }
+.keypad{ display:grid; grid-template-columns:repeat(3,1fr); margin-top:0; padding:12px 6px; border-radius:26px; background:rgba(255,255,255,.42); border:1px solid rgba(255,255,255,.6); backdrop-filter:blur(20px) saturate(1.5); -webkit-backdrop-filter:blur(20px) saturate(1.5); box-shadow:0 10px 30px rgba(20,20,26,.08); }
+body[data-mode="dark"] .keypad{ background:rgba(255,255,255,.07); border-color:rgba(255,255,255,.14); box-shadow:0 10px 30px rgba(0,0,0,.42); }
+.key{ height:58px; border:none; background:transparent; color:var(--ink-strong); font-size:26px; font-weight:400; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; border-radius:50%; transition:background .12s,transform .1s; }
+.key:active{ background:var(--p-soft); transform:scale(.94); }
+.key small{ font-size:9px; color:var(--ink-soft); letter-spacing:2.5px; font-weight:500; }
+.actions{ position:relative; display:flex; align-items:center; justify-content:center; margin-top:14px; height:70px; }
+.actions > div{ display:none; }
+.call-btn{ width:66px; height:66px; border-radius:50%; border:none; cursor:pointer; background:var(--ink-strong); display:flex; align-items:center; justify-content:center; box-shadow:0 8px 24px var(--shadow-strong); transition:transform .15s; }
+.call-btn:active{ transform:scale(.92); }
+.call-btn svg{ fill:#fff; }
+body[data-mode="dark"] .call-btn svg{ fill:#0f0f11; }
+.del-btn{ position:absolute; right:8px; top:50%; transform:translateY(-50%); width:54px; height:54px; border:none; background:transparent; color:var(--ink-soft); font-size:25px; cursor:pointer; z-index:6; padding:0; }
+.kp-toggle{ position:absolute; bottom:25px; left:8px; width:44px; height:44px; border-radius:14px; border:1px solid var(--border); background:var(--card); color:var(--ink-soft); cursor:pointer; display:flex; align-items:center; justify-content:center; z-index:6; backdrop-filter:blur(16px) saturate(1.4); -webkit-backdrop-filter:blur(16px) saturate(1.4); box-shadow:0 4px 14px var(--shadow); }
+.kp-toggle svg{ width:20px; height:20px; }
+#dial.kp-collapsed .kp-toggle{ bottom:0; }
+
+/*~ 呼叫中 */
+#calling{ justify-content:center; align-items:center; gap:22px; padding:0 24px; }
+.avatar{ width:118px; height:118px; border-radius:50%; object-fit:cover; background:var(--p-soft); border:none; box-shadow:0 0 0 1px var(--border),0 18px 46px var(--shadow-deep); animation:breathe 2.6s ease-in-out infinite; }
+@keyframes breathe{ 0%,100%{ transform:scale(1); } 50%{ transform:scale(1.03); box-shadow:0 0 0 10px var(--glow),0 22px 54px var(--shadow-deep); } }
+.calling-name{ font-size:25px; font-weight:300; letter-spacing:5px; color:var(--ink-strong); }
+.calling-status{ font-size:10px; letter-spacing:5px; color:var(--ink-faint); animation:blink 1.6s infinite; }
+@keyframes blink{ 50%{ opacity:.25; } }
+.hang-red{ width:62px; height:62px; border-radius:50%; border:none; cursor:pointer; background:var(--ink-strong); display:flex; align-items:center; justify-content:center; box-shadow:0 8px 22px var(--shadow-strong); transition:transform .15s; }
+.hang-red:active{ transform:scale(.92); }
+.hang-red svg{ fill:#fff; transform:rotate(135deg); width:23px; height:23px; }
+body[data-mode="dark"] .hang-red svg{ fill:#0f0f11; }
+
+/*~ 通话中 */
+#incall{ padding:0; }
+.incall-head{ position:relative; display:grid; grid-template-columns:38px 1fr auto 34px; grid-template-areas:"av name timer mini" "av num timer mini"; align-items:center; gap:0 12px; padding:14px 20px 12px; border-bottom:1px solid var(--border); }
+.incall-avatar{ grid-area:av; width:38px; height:38px; border-radius:50%; object-fit:cover; background:var(--p-soft); border:none; }
+.incall-name{ grid-area:name; align-self:end; font-size:14px; font-weight:400; letter-spacing:1px; color:var(--ink-strong); }
+.incall-number{ grid-area:num; align-self:start; font-size:10px; letter-spacing:2px; color:var(--ink-soft); margin-top:2px; }
+.timer{ grid-area:timer; align-self:center; font-size:13px; font-weight:500; letter-spacing:1px; color:var(--ink-soft); font-variant-numeric:tabular-nums; }
+.mini-btn{ grid-area:mini; align-self:start; width:30px; height:30px; border:none; border-radius:50%; background:rgba(0,0,0,.055); color:var(--ink-soft); display:flex; align-items:center; justify-content:center; padding:0; margin-top:-4px; }
+.mini-btn:active{ background:rgba(0,0,0,.12); }
+.ver-tag{ position:fixed; right:8px; bottom:4px; font-size:8px; color:var(--ink-faint); opacity:.45; z-index:99; pointer-events:none; }
+.msg-area{ flex:1; overflow-y:auto; margin:0; padding:16px 18px 8px; display:flex; flex-direction:column; gap:8px; }
+.msg{ max-width:80%; padding:10px 13px; border-radius:13px; font-size:13.5px; line-height:1.55; word-break:break-word; }
+.msg.me{ align-self:flex-end; background:var(--ink-strong); color:#f6f6f8; border-bottom-right-radius:4px; }
+.msg.ai{ align-self:flex-start; background:var(--card); color:var(--ink); border-bottom-left-radius:4px; border:1px solid var(--border); }
+.msg .tr{ margin-top:6px; padding-top:6px; border-top:1px solid var(--border); font-size:12px; line-height:1.5; opacity:.72; }
+.msg.tip{ align-self:center; background:transparent; color:var(--ink-faint); font-size:10px; letter-spacing:2px; }
+body[data-mode="dark"] .msg.me{ color:#0f0f11; }
+body[data-mode="dark"] .msg.ai{ background:rgba(26,26,31,.76); color:#e9e9f1; border-color:rgba(255,255,255,.22); padding:12px 14px; -webkit-backdrop-filter:blur(16px) saturate(1.2); backdrop-filter:blur(16px) saturate(1.2); box-shadow:0 8px 20px rgba(0,0,0,.32); }
+.input-bar{ display:flex; gap:8px; align-items:center; padding:8px 18px 0; }
+.input-bar input{ flex:1; height:44px; border-radius:13px; border:1px solid var(--border); background:var(--card-input); color:var(--ink-strong); padding:0 14px; font-size:13.5px; outline:none; }
+.input-bar input:focus{ border-color:var(--ink-strong); }
+.mic-btn{ width:44px; height:44px; border-radius:13px; border:1px solid var(--border); background:var(--card-input); color:var(--ink-strong); display:flex; align-items:center; justify-content:center; cursor:pointer; flex:0 0 auto; }
+.mic-btn.rec{ background:var(--ink-strong); color:var(--bg1); }
+.send-btn{ width:44px; height:44px; border-radius:13px; border:none; cursor:pointer; background:var(--ink-strong); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.send-btn svg{ fill:#fff; width:18px; height:18px; }
+body[data-mode="dark"] .send-btn svg{ fill:#0f0f11; }
+.controls{ display:flex; gap:10px; align-items:center; justify-content:center; padding:12px 18px 22px; }
+.ctrl-btn{ height:42px; padding:0 18px; border-radius:21px; border:1px solid var(--border); background:var(--card); color:var(--ink-soft); cursor:pointer; display:flex; flex-direction:row; align-items:center; gap:6px; font-size:11.5px; letter-spacing:1px; }
+.ctrl-btn svg{ width:17px; height:17px; fill:currentColor; }
+.ctrl-btn.on{ background:var(--ink-strong); color:var(--bg1); border-color:transparent; }
+.controls .hang-red{ width:52px; height:52px; }
+
+/*~ 设置 */
+.overlay{ position:fixed; inset:0; background:var(--bg1); z-index:99; overflow-y:auto; -webkit-overflow-scrolling:touch; visibility:hidden; transform:translateX(100%); transition:transform .28s ease,visibility .28s; }
+.overlay.show{ visibility:visible; transform:translateX(0); }
+.sheet{ width:100%; min-height:100%; padding:22px 20px 44px; }
+.sheet h3{ font-size:11px; font-weight:500; letter-spacing:7px; color:var(--ink-faint); margin-bottom:18px; }
+.avatar-preview{ width:60px; height:60px; border-radius:50%; object-fit:cover; margin:0 auto 8px; display:block; background:var(--p-soft); border:1px solid var(--border); cursor:pointer; }
+.row-inline .btn-album,.row-inline .btn-reset{ flex:1 1 0; height:44px; border-radius:22px; background:rgba(255,255,255,.62); color:var(--ink-soft); border:1px solid rgba(255,255,255,.85); font-size:13px; letter-spacing:2px; padding:0; cursor:pointer; -webkit-backdrop-filter:blur(18px) saturate(1.5); backdrop-filter:blur(18px) saturate(1.5); box-shadow:0 6px 18px rgba(20,20,26,.07); }
+body[data-mode="dark"] .row-inline .btn-album,body[data-mode="dark"] .row-inline .btn-reset{ background:rgba(255,255,255,.09); color:var(--ink-soft); border-color:rgba(255,255,255,.16); box-shadow:0 6px 18px rgba(0,0,0,.3); }
+.avatar-reset{ display:block; margin:0 auto 16px; width:26px; height:26px; padding:0; border-radius:50%; border:1px solid var(--border); background:rgba(255,255,255,.55); color:var(--ink-soft); font-size:13px; line-height:23px; text-align:center; cursor:pointer; -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px); }
+.avatar-btns{ display:flex; gap:8px; margin-bottom:18px; }
+.avatar-btns button{ flex:1; height:36px; border-radius:11px; border:1px solid var(--border); cursor:pointer; font-size:11.5px; letter-spacing:1px; background:transparent; color:var(--ink-soft); }
+.btn-album{ background:var(--ink-strong); color:var(--bg1); border-color:transparent; }
+.btn-reset{ background:transparent; color:var(--ink-soft); }
+.field{ margin-bottom:16px; }
+.field label{ font-size:9.5px; color:var(--ink-faint); display:block; margin-bottom:6px; letter-spacing:2.5px; }
+.field input{ width:100%; height:46px; border-radius:12px; border:1px solid var(--border); background:var(--card-input); color:var(--ink-strong); padding:0 14px; font-size:13.5px; outline:none; transition:border .2s,background .2s; }
+.field input:focus{ border-color:var(--ink-strong); background:var(--card-strong); }
+.row-inline{ display:flex; gap:10px; }
+.mode-btn{ flex:1; height:40px; border-radius:12px; border:1px solid var(--border); background:transparent; color:var(--ink-soft); font-size:12px; letter-spacing:2px; cursor:pointer; }
+.mode-btn.on{ background:var(--ink-strong); color:var(--bg1); border-color:transparent; }
+.prov-row{ display:flex; gap:6px; }
+.prov-btn{ flex:1; height:36px; border-radius:11px; border:1px solid var(--border); background:transparent; color:var(--ink-soft); font-size:10.5px; padding:0; cursor:pointer; }
+.prov-btn.on{ background:var(--ink-strong); color:var(--bg1); border-color:transparent; }
+.sheet-btns{ display:flex; gap:10px; margin-top:22px; }
+.sheet-btns button{ flex:1; height:44px; border-radius:13px; border:none; cursor:pointer; font-size:13px; letter-spacing:3px; }
+.btn-cancel{ background:var(--p-bg); color:var(--ink-soft); }
+.btn-save{ background:var(--ink-strong); color:var(--bg1); font-weight:500; }
+.slider{ display:none; }
+/*~ 设置 · 玻璃面板 */
+.overlay{ background-color:var(--bg1); background-image:linear-gradient(rgba(255,255,255,.46),rgba(255,255,255,.46)),var(--customBg,none); background-size:cover,cover; background-position:center,center; background-repeat:no-repeat,no-repeat; backdrop-filter:none; -webkit-backdrop-filter:none; }
+body[data-mode="dark"] .overlay{ background-image:linear-gradient(rgba(12,12,15,.52),rgba(12,12,15,.52)),var(--customBg,none); }
+.sheet{ width:100%; margin:0; min-height:auto; padding:22px 20px 46px; border-radius:0; background:transparent; border:none; box-shadow:none; backdrop-filter:none; -webkit-backdrop-filter:none; }
+.sheet h3{ color:var(--ink-soft); }
+.avatar-preview{ background:rgba(255,255,255,.62); border-color:rgba(255,255,255,.85); box-shadow:0 8px 22px rgba(20,20,26,.1); }
+body[data-mode="dark"] .avatar-preview{ background:rgba(255,255,255,.1); border-color:rgba(255,255,255,.16); }
+.field input{ background:rgba(255,255,255,.62); border:1px solid rgba(255,255,255,.85); backdrop-filter:blur(18px) saturate(1.5); -webkit-backdrop-filter:blur(18px) saturate(1.5); box-shadow:0 6px 18px rgba(20,20,26,.07); }
+.field input:focus{ background:rgba(255,255,255,.82); border-color:rgba(255,255,255,.95); }
+body[data-mode="dark"] .field input{ background:rgba(255,255,255,.09); border-color:rgba(255,255,255,.16); box-shadow:0 6px 18px rgba(0,0,0,.3); }
+body[data-mode="dark"] .field input:focus{ background:rgba(255,255,255,.15); }
+.avatar-btns button:not(.btn-album),.mode-btn:not(.on),.prov-btn:not(.on),.btn-cancel{ background:rgba(255,255,255,.62); border:1px solid rgba(255,255,255,.85); backdrop-filter:blur(18px) saturate(1.5); -webkit-backdrop-filter:blur(18px) saturate(1.5); box-shadow:0 6px 18px rgba(20,20,26,.07); }
+body[data-mode="dark"] .avatar-btns button:not(.btn-album),body[data-mode="dark"] .mode-btn:not(.on),body[data-mode="dark"] .prov-btn:not(.on),body[data-mode="dark"] .btn-cancel{ background:rgba(255,255,255,.09); border-color:rgba(255,255,255,.16); box-shadow:0 6px 18px rgba(0,0,0,.3); }
+
+
+/*~ 记录菜单 */
+#callMenu{ position:fixed; z-index:120; background:var(--card-solid); border-radius:13px; box-shadow:0 12px 34px var(--shadow-deep); overflow:hidden; }
+#callMenu div{ padding:12px 22px; font-size:13px; color:var(--ink-strong); cursor:pointer; }
+#callMenu div:active{ background:var(--p-bg); }
+#callMenu .cm-del{ border-top:1px solid var(--border); }
+</style>
+<script>
+/* 夜铃独立版 · 宿主桥（把插件的 BellHost 接到原生 App） */
+(function () {
+  function safe(fn, d) {
+    try { return fn(); } catch (e) { return d; }
+  }
+  var H = {
+    log: function (m) { safe(function () { NB.log(String(m)); }); },
+    dataWrite: function (o) {
+      o = o || {};
+      return safe(function () { return NB.dataWrite(String(o.key || ''), String(o.val || '')); }, '{"ok":false}');
+    },
+    dataRead: function (o) {
+      o = o || {};
+      return safe(function () { return NB.dataRead(String(o.key || '')); }, '{"ok":false}');
+    },
+    ringShow: function (o) {
+      o = o || {};
+      safe(function () { NB.ring(String(o.name || ''), String(o.line || ''), Number(o.timeout || 40)); });
+      return '';
+    },
+    ringResult: function () {
+      return safe(function () { return NB.ringResult(); }, '');
+    },
+    chatWithAgent: function (p) {
+      return safe(function () { return NB.ask(JSON.stringify(p || {})); }, '{"ok":false}');
+    },
+    poll: function () {
+      return safe(function () { return NB.pollAsk(); }, '{"ok":true,"pending":true}');
+    },
+    speakText: function (o) { return safe(function () { return NBT.speak(JSON.stringify(o || {})); }, '{"ok":false}'); },
+    ttsPoll: function () { return safe(function () { return NBT.ttsPoll(); }, '{"ok":false}'); },
+    ttsStop: function () { try { NBT.stop(); } catch (e) { } },
+    ttsStream: function (o) { return safe(function () { return NBT.ttsStream(JSON.stringify(o || {})); }, '{"ok":false}'); },
+    asrBegin: function () { return safe(function () { return NB.asrBegin(''); }, '{"ok":false}'); },
+    asrEnd: function () { return safe(function () { return NB.asrEnd(); }, '{"ok":false}'); },
+    asrCancel: function () { try { NB.asrCancel(); } catch (e) { } },
+    asrAmp: function () { try { return NB.asrAmp(); } catch (e) { return 0; } },
+    audioPoll: function () { return safe(function () { return NBT.poll(); }, '{"ok":false}'); },
+    httpGet: function () { return '{"ok":false}'; },
+    nativeProbe: function () { return ''; },
+    probe: function () { return ''; },
+    nativeReadBase64: function () { return ''; }
+  };
+  window.BellHost = H;
+
+  /* 权限提示条：缺什么就提示，点了直接跳系统页 */
+  function tip() {
+    var st = {};
+    try { st = JSON.parse(NB.state()); } catch (e) { st = {}; }
+    var box = document.getElementById('nbPermTip');
+    var need = [];
+    if (!st.overlay) need.push('悬浮窗');
+    if (!st.files) need.push('文件访问');
+    if (!need.length) {
+      if (box) box.style.display = 'none';
+      return;
+    }
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'nbPermTip';
+      box.style.cssText = 'position:fixed;left:14px;right:14px;top:12px;z-index:99999;padding:12px 16px;border-radius:16px;' +
+        'background:rgba(20,20,26,.9);color:#f0f0f4;font-size:12.5px;letter-spacing:.4px;' +
+        'display:flex;align-items:center;justify-content:space-between;gap:10px;' +
+        'box-shadow:0 10px 30px rgba(0,0,0,.35);backdrop-filter:blur(12px);';
+      box.innerHTML = '<span id="nbPermTxt"></span><b id="nbPermBtn" style="flex:0 0 auto;font-weight:600;font-size:12.5px;">去开</b>';
+      document.body.appendChild(box);
+      box.onclick = function () {
+        var s2 = {};
+        try { s2 = JSON.parse(NB.state()); } catch (e) { }
+        if (!s2.overlay) NB.openOverlay(); else NB.openFiles();
+      };
+    }
+    box.style.display = 'flex';
+    document.getElementById('nbPermTxt').textContent = '还差' + need.join('、') + '权限，来电弹不出来';
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function () { setTimeout(tip, 400); });
+  } else {
+    setTimeout(tip, 400);
+  }
+  setInterval(tip, 2500);
+})();
+</script>
+</head>
+<body>
+
+<div class="phone">
+  <!-- 拨号 -->
+  <div class="screen" id="dial">
+    <div class="dial-top">
+      <button class="gear" onclick="openSettings()">
+        <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="8" r="1.7"/><circle cx="12" cy="16" r="1.7"/></svg>
+      </button>
+    </div>
+    <div class="calls-panel" id="dialCalls"></div>
+    <div class="dial-body">
+      <button class="kp-toggle" id="kpToggle" onclick="toggleKeypad()"><svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><circle cx="6" cy="6" r="1.5"/><circle cx="12" cy="6" r="1.5"/><circle cx="18" cy="6" r="1.5"/><circle cx="6" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="18" cy="12" r="1.5"/><circle cx="6" cy="18" r="1.5"/><circle cx="12" cy="18" r="2.2"/><circle cx="18" cy="18" r="1.5"/></svg></button>
+      <div class="number-display">
+        <div class="num-text placeholder" id="numText"></div>
+      </div>
+      <div class="keypad" id="keypad"></div>
+      <div class="actions">
+        <div style="width:44px"></div>
+        <button class="call-btn" onclick="startCall()">
+          <svg viewBox="0 0 24 24" width="25" height="25"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.6 21 3 13.4 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.2.2 2.4.6 3.6.1.3 0 .7-.2 1l-2.3 2.2z"/></svg>
+        </button>
+        <button class="del-btn" onclick="delNum()">⌫</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 呼叫中 -->
+  <div class="screen hidden" id="calling">
+    <img class="avatar" id="callAvatar" alt="">
+    <div class="calling-name" id="callName">AI</div>
+    <div class="calling-status">正在呼叫 · 嘟嘟嘟…</div>
+    <button id="answerBtn" style="display:none;background:#2ecc71;color:#fff;border:none;border-radius:50%;width:64px;height:64px;font-size:15px;margin-bottom:16px" onclick="answerIncoming()">接听</button>
+    <button class="hang-red" onclick="hangUp()">
+      <svg viewBox="0 0 24 24" width="24" height="24"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.6 21 3 13.4 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.2.2 2.4.6 3.6.1.3 0 .7-.2 1l-2.3 2.2z"/></svg>
+    </button>
+  </div>
+
+  <!-- 通话中 -->
+  <div class="screen hidden" id="incall">
+    <div class="incall-head">
+      <img class="incall-avatar" id="incallAvatar" alt="">
+      <div class="incall-name" id="incallName">AI</div>
+      <div class="incall-number" id="incallNumber">520-1314</div>
+      <div class="timer" id="timer">00:00</div>
+      <button class="mini-btn" onclick="shrinkCall()" aria-label="缩小"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M10 4v4H6v2h6V4h-2zm4 0h-2v6h6V8h-4V4zM4 14v2h4v4h2v-6H4zm10 0v6h2v-4h4v-2h-6z"/></svg></button>
+    <div class="ver-tag">v0.3.39</div>
+    </div>
+    <div class="msg-area" id="msgList">
+      <div class="msg tip">通话已接通，想说什么就发给我吧</div>
+    </div>
+    <div class="input-bar">
+      <input id="msgInput" placeholder="说点什么…" maxlength="200" onkeydown="if(event.key==='Enter')sendMsg()">
+      <button class="send-btn" onclick="sendMsg()">
+        <svg viewBox="0 0 24 24" width="19" height="19"><path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/></svg>
+      </button>
+    </div>
+    <div class="controls">
+      <button class="ctrl-btn" id="muteBtn" onclick="voiceToggle()">
+        <svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2z"/></svg>
+        <span id="muteLabel">语音</span>
+      </button>
+      <button class="ctrl-btn" id="speakerBtn" onclick="toggleSpeaker()">
+        <svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 8v8a4.5 4.5 0 0 0 2.5-4zM14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6z"/></svg>
+        <span id="speakerLabel">免提</span>
+      </button>
+      <button class="hang-red" onclick="hangUp()">
+        <svg viewBox="0 0 24 24" width="24" height="24"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.6 21 3 13.4 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.2.2 2.4.6 3.6.1.3 0 .7-.2 1l-2.3 2.2z"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- 设置 -->
+<div class="overlay" id="overlay">
+  <div class="sheet">
+    <h3>设置</h3>
+    <img class="avatar-preview" id="preview" alt="" onclick="document.getElementById('fileAvatar').click()">
+    <button class="avatar-reset" onclick="resetAvatar()" title="恢复默认头像">&#8635;</button>
+    <input type="file" id="fileAvatar" accept="image/*" style="display:none">
+    <div class="field"><label>背景</label>
+      <div class="row-inline">
+        <button class="btn-album" onclick="document.getElementById('fileBg').click()">更换背景</button>
+        <button class="btn-reset" onclick="resetBg()">恢复默认</button>
+      </div>
+      <input type="file" id="fileBg" accept="image/*" style="display:none">
+    </div>
+    <div class="field"><label>显示模式</label>
+      <div class="row-inline">
+        <button class="mode-btn" data-m="light" onclick="pickMode('light')">浅色</button>
+        <button class="mode-btn" data-m="dark" onclick="pickMode('dark')">深色</button>
+      </div>
+    </div>
+    <div class="field"><label>身份</label>
+      <div class="row-inline">
+        <button class="mode-btn" id="pf-main" onclick="pickProfile('main')">主号</button>
+        <button class="mode-btn" id="pf-virtual" onclick="pickProfile('virtual')">虚拟号</button>
+      </div>
+    </div>
+    <div class="field" style="margin-top:18px;padding-top:14px;border-top:1px solid var(--border)"><label style="font-weight:500;color:var(--ink-soft)">来电显示（主号）</label></div>
+    <div class="field"><label>用户名字</label><input id="setUserName" placeholder="例如：user"></div>
+    <div class="field"><label>归属地</label><input id="setUserLoc" placeholder="例如：北京"></div>
+    <div class="field"><label>AI 名字</label><input id="setName" placeholder="例如：AI"></div>
+    <div class="field"><label>号码</label><input id="setNumber" placeholder="5201314"></div>
+    <div class="field"><label>归属地</label><input id="setLocation" placeholder="北京"></div>
+    <div class="field"><label>来电铃声</label><div class="prov-row"><button class="prov-btn" onclick="pickRing()">选择铃声</button><button class="prov-btn" onclick="resetRing()">恢复默认</button></div><div id="ringHint" style="font-size:12px;color:var(--ink-soft);margin-top:6px"></div></div>
+    <div class="field" style="margin-top:18px;padding-top:14px;border-top:1px solid var(--border)"><label style="font-weight:500;color:var(--ink-soft)">AI 通话（Operit 角色）</label></div>
+    <div class="field"><label>角色卡名称</label><input id="setCardName" placeholder="Operit 角色卡名称"></div>
+    <div class="field"><label>对话 ID（选填，留空自动新建）</label><input id="setChatId" placeholder="不填则自动新建对话"></div>
+    <div class="field" style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border)"><label style="font-weight:500;color:var(--ink-soft)">语音合成（选填，不填只有文字）</label></div>
+    <div class="field"><label>TTS 供应商</label><div class="prov-row" id="ttsProvRow"><button class="prov-btn" data-p="ali">阿里</button><button class="prov-btn" data-p="moss">MOSS</button><button class="prov-btn" data-p="eleven">ElevenLabs</button><button class="prov-btn" data-p="volcano">火山</button><button class="prov-btn" data-p="minimax">MiniMax</button></div></div>
+    <div class="field"><label>TTS API Key</label><input id="setTtsKey2" placeholder="sk-..." type="text"></div>
+    <div class="field"><label>TTS 模型</label><input id="setTtsModel" placeholder="如 qwen-tts、cosyvoice-v2"></div>
+    <div class="field"><label>音色 ID</label><input id="setTtsVoice" placeholder="如 cosyvoice-v2-vd-qiyuan60"></div>
+    <div class="field"><label>资源 ID</label><input id="setTtsRes" placeholder="seed-tts-2.0"></div>
+    <div class="field"><label>群组编号</label><input id="setTtsGroup" placeholder="MiniMax 的 GroupId" type="text"></div>
+    <div class="field"><label>翻译 appid（百度）</label><input id="setBdAppid" placeholder="百度翻译开放平台 appid" type="text"></div>
+    <div class="field"><label>翻译密钥（百度）</label><input id="setBdKey" placeholder="百度翻译开放平台密钥" type="text"></div>
+    <div class="sheet-btns">
+      <button class="btn-cancel" onclick="closeSettings()">取消</button>
+      <button class="btn-save" onclick="saveSettings()">保存</button>
+    </div>
+  </div>
+</div>
+
+<div id="callMenu" style="display:none"></div>
+
+<script>
+function mlog(m){ try{ if(window.BellHost&&window.BellHost.log){ window.BellHost.log(m); } else { console.log('[bell] '+m); } }catch(e){} }
+
+var _hbN = 0;
+var _topN = 0;
+setInterval(function(){
+  if (!_voiceOn) return;
+  _topN++;
+  try { if (typeof voiceTick === 'function') voiceTick(); } catch(e){}
+}, 200);
+var _hbT = setInterval(function(){ if (_hbN < 3){ _hbN++; try { mlog('hb n=' + _hbN); } catch(e){} } else { clearInterval(_hbT); } }, 1000);setTimeout(function(){ try{ var keys=''; if(window.BellHost){ for(var k in window.BellHost){ keys+=k+','; } } mlog('boot hasHost='+(!!window.BellHost)+' keys='+keys); }catch(e){} try{ mlog('boot nav='+(navigator.userAgent||'').slice(0,140)); }catch(e){} try{ mlog('boot mlogSelfTest'); }catch(e){} },300);setTimeout(function(){ try{ if (window.BellHost && BellHost.takePendingLine){ var _pl = String(BellHost.takePendingLine()||''); if (_pl !== '__none__'){ window.__nbResumeCall = 0; answerIncoming(_pl); } } }catch(e){} }, 600);
+var DEF_AVATAR = 'data:image/svg+xml;utf8,' + encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200">' +
+  '<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">' +
+  '<stop offset="0" stop-color="#d4d4d8"/><stop offset="1" stop-color="#8f8f9a"/>' +
+  '</linearGradient></defs>' +
+  '<rect width="200" height="200" fill="url(#g)"/>' +
+  '<circle cx="100" cy="82" r="34" fill="rgba(255,255,255,.92)"/>' +
+  '<path d="M38 200c6-40 32-58 62-58s56 18 62 58z" fill="rgba(255,255,255,.92)"/></svg>');
+
+var TTS_BASE = { ali: 'https://dashscope.aliyuncs.com', moss: 'https://api.mosi.cn', eleven: 'https://api.elevenlabs.io', volcano: 'https://openspeech.bytedance.com', minimax: 'https://api.minimax.chat' };
+var cfg = { name: 'AI', avatar: DEF_AVATAR, number: '5201314', location: '北京', ring: '', mode: 'light', customBg: '', cardName: '', chatId: '', tts: { provider: 'ali', items: {}, sttKey: '' } };
+
+/* ===== 本地存储：localStorage + IndexedDB 双保险（Operit WebView 可能清 localStorage） ===== */
+var _mem = {};
+function _b64enc(s){ try { return btoa(unescape(encodeURIComponent(String(s)))); } catch(e){ return ''; } }
+function _b64dec(b){ try { return decodeURIComponent(escape(atob(String(b).replace(/[\r\n\s]/g,'')))); } catch(e){ return ''; } }
+function storeGet(k){ if (k in _mem) return _mem[k]; try { var v = localStorage.getItem(k); if (v !== null) { _mem[k] = v; return v; } } catch(e){} try { if (window.BellHost && window.BellHost.dataRead) { var _r = window.BellHost.dataRead({ key: k }); var _o = (typeof _r === 'string') ? JSON.parse(_r) : _r; if (_o && _o.ok && _o.val) { var _d = _b64dec(_o.val); if (_d) { _mem[k] = _d; return _d; } } } } catch(e){} return null; }
+function storeSet(k, v){
+  _mem[k] = v;
+  try { localStorage.setItem(k, v); } catch(e){}
+  try { if (window.BellHost && window.BellHost.dataWrite) { window.BellHost.dataWrite({ key: k, val: _b64enc(v) }); } } catch(e){}
+  try {
+    var req = indexedDB.open('app_db', 1);
+    req.onupgradeneeded = function(e){ e.target.result.createObjectStore('kv'); };
+    req.onsuccess = function(e){
+      var db = e.target.result;
+      var tx = db.transaction('kv', 'readwrite');
+      tx.objectStore('kv').put(v, k);
+    };
+  } catch(e){}
+}
+function loadCfg(){
+  try {
+    var s = storeGet("app_cfg");
+    if (!s) { try { var _pr = (window.BellHost && window.BellHost.dataRead) ? window.BellHost.dataRead({ key: "app_cfg" }) : null; var _po = (typeof _pr === "string") ? JSON.parse(_pr) : _pr; if (_po && _po.ok && _po.val) s = _b64dec(_po.val); } catch (e) {} }
+    if (s) { cfg = Object.assign(cfg, JSON.parse(s)); cfg.tts = migTts(cfg.tts); }
+  } catch(e){}
+  try {
+    var req = indexedDB.open('app_db', 1);
+    req.onupgradeneeded = function(e){ e.target.result.createObjectStore('kv'); };
+    req.onsuccess = function(e){
+      var db = e.target.result;
+      var rq = db.transaction('kv').objectStore('kv').get('app_cfg');
+      rq.onsuccess = function(){
+        if (rq.result) {
+          try {
+            var c = JSON.parse(rq.result);
+            if (c && c.name) { cfg = Object.assign(cfg, c); cfg.tts = migTts(cfg.tts); refreshUI(); }
+          } catch(err){}
+        }
+        applyMode();
+      };
+    };
+  } catch(e){}
+  refreshUI();
+}
+
+var numInput = '';
+var audioCtx = null, ringTimer = null;
+var callSeconds = 0, callTimer = null, callStart = 0, connected = false;
+var speaker = false;
+
+function $(id){ return document.getElementById(id); }
+function fmtNum(n){ return n.length > 3 ? n.slice(0,3) + '-' + n.slice(3,7) + (n.length > 7 ? '-' + n.slice(7) : '') : n; }
+/*~ 麦克风自检（STT 前置验证） */
+function micProbe(){
+  if (!window.BellHost || typeof window.BellHost.nativeProbe !== 'function'){ addMsg('ai','·0 没有 nativeProbe 桥'); return; }
+  addMsg('ai','·1 原生检测中');
+  var pr = window.BellHost.nativeProbe();
+  Promise.resolve(pr).then(function(raw){
+    var o = raw;
+    if (typeof o === 'string'){ try { o = JSON.parse(o); } catch(e){ o = { raw: raw }; } }
+    addMsg('ai','·2 ' + JSON.stringify(o));
+  }).catch(function(e){ addMsg('ai','·err ' + String(e)); });
+}
+/*~ 外观：明暗与背景 */
+var Display = (function () {
+  var modeWant = null;
+  var bgWant = null;
+  function modeNow() {
+    var v = modeWant !== null ? modeWant : (cfg.mode || 'light');
+    return v === 'dark' ? 'dark' : 'light';
+  }
+  function bgNow() { return bgWant !== null ? bgWant : (cfg.customBg || ''); }
+  function paint() {
+    document.body.setAttribute('data-mode', modeNow());
+    var u = bgNow();
+    document.body.classList.toggle('custom-bg', !!u);
+    if (u) { document.body.style.setProperty('--customBg', 'url(' + u + ')'); }
+    else { document.body.style.removeProperty('--customBg'); }
+    var btns = document.querySelectorAll('.mode-btn');
+    Array.prototype.forEach.call(btns, function (b) {
+      b.classList.toggle('on', b.getAttribute('data-m') === modeNow());
+    });
+  }
+  function choose(m) { modeWant = m; paint(); }
+  function stageBg(u) { bgWant = u; paint(); }
+  function dropBg() { bgWant = ''; paint(); }
+  function wipe() { modeWant = null; bgWant = null; }
+  function modeWantRef() { return modeWant; }
+  function bgWantRef() { return bgWant; }
+  return { paint: paint, modeNow: modeNow, bgNow: bgNow, choose: choose,
+           stageBg: stageBg, dropBg: dropBg, wipe: wipe,
+           modeWantRef: modeWantRef, bgWantRef: bgWantRef };
+})();
+function applyMode() { Display.paint(); }
+function curMode() { return Display.modeNow(); }
+function customBgUrl() { return Display.bgNow(); }
+function pickMode(m) { Display.choose(m); }
+function resetBg() { Display.dropBg(); }
+$('fileBg').addEventListener('change', function () {
+  var f = this.files && this.files[0];
+  if (!f) { return; }
+  var rd = new FileReader();
+  rd.onload = function (ev) { Display.stageBg(ev.target.result); };
+  rd.readAsDataURL(f);
+  this.value = '';
+});
+/* 柔和光斑背景 */
+
+/* 键盘 */
+(function(){
+  var keys = [['1',''],['2','ABC'],['3','DEF'],['4','GHI'],['5','JKL'],['6','MNO'],['7','PQRS'],['8','TUV'],['9','WXYZ'],['*',''],['0','+'],['#','']];
+  var kp = $('keypad');
+  keys.forEach(function(k){
+    var b = document.createElement('button');
+    b.className = 'key';
+    b.innerHTML = k[0] + (k[1] ? '<small>'+k[1]+'</small>' : '');
+    b.onclick = function(){ addNum(k[0]); };
+    kp.appendChild(b);
+  });
+})();
+
+/*~ 按键音（DTMF 双频） */
+var DTMF = { '1':[697,1209], '2':[697,1336], '3':[697,1477], '4':[770,1209], '5':[770,1336], '6':[770,1477],
+             '7':[852,1209], '8':[852,1336], '9':[852,1477], '*':[941,1209], '0':[941,1336], '#':[941,1477] };
+function keyTone(d){
+  var pair = DTMF[d];
+  if (!pair) return;
+  try{
+    if (!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+    var ctx = audioCtx, t0 = ctx.currentTime;
+    for (var i = 0; i < 2; i++){
+      var o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'sine'; o.frequency.value = pair[i];
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(0.11, t0 + 0.006);
+      g.gain.setValueAtTime(0.11, t0 + 0.075);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.095);
+      o.connect(g); g.connect(ctx.destination);
+      o.start(t0); o.stop(t0 + 0.1);
+    }
+  }catch(e){}
+}
+function addNum(d){
+  if (numInput.length >= 11) return;
+  keyTone(d);
+  numInput += d;
+  refreshNum();
+}
+function delNum(){
+  numInput = numInput.slice(0,-1);
+  try{ keyTone('0'); }catch(e){}
+  refreshNum();
+}
+function refreshNum(){
+  var t = $('numText');
+  if (numInput){
+    t.textContent = fmtNum(numInput);
+    t.className = 'num-text';
+  } else {
+    t.textContent = '';
+    t.className = 'num-text placeholder';
+  }
+}
+
+function whoText(){ return cfg.active === 'virtual' ? '未知来电' : ((cfg.userName || '未知') + ' 来电'); }
+function locText(){ return cfg.active === 'virtual' ? '未知' : (cfg.userLoc || '未知'); }
+function refreshUI(){
+  ['chipAvatar','callAvatar','incallAvatar'].forEach(function(id){ var e = $(id); if (e) e.src = cfg.avatar; });
+  var cn = $('chipName'); if (cn) cn.textContent = (cfg.name || 'AI');
+  $('callName').textContent = (cfg.name || 'AI');
+  $('incallName').textContent = (cfg.name || 'AI');
+  $('incallNumber').textContent = fmtNum(cfg.number);
+}
+
+/* 嘟嘟声：450Hz，响0.6停0.9 */
+function startRing(){
+  try{
+    audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+    var beep = function(){
+      var o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.type = 'sine'; o.frequency.value = 450;
+      var t = audioCtx.currentTime;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.09, t+0.02);
+      g.gain.setValueAtTime(0.09, t+0.55);
+      g.gain.exponentialRampToValueAtTime(0.0001, t+0.6);
+      var f = audioCtx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 900; o.connect(f); f.connect(g); g.connect(audioCtx.destination);
+      o.start(t); o.stop(t+0.6);
+    };
+    beep();
+    ringTimer = setInterval(beep, 1500);
+  }catch(e){}
+}
+function stopRing(){
+  clearInterval(ringTimer);
+  if (audioCtx){ audioCtx.close().catch(function(){}); audioCtx = null; }
+}
+/* 接通提示音 */
+function connectTone(){
+  try{
+    if (!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+    var o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.type = 'sine'; o.frequency.value = 880;
+    var t = audioCtx.currentTime;
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.18, t+0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t+0.25);
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(t); o.stop(t+0.25);
+  }catch(e){}
+}
+
+/* 忙音：无法接通提示（450Hz 短促三声） */
+function busyTone(){
+  try{
+    if (!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+    var ctx = audioCtx;
+    for (var i = 0; i < 3; i++){
+      var o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'sine'; o.frequency.value = 450;
+      var t = ctx.currentTime + i*0.5;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.2, t+0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t+0.3);
+      o.connect(g); g.connect(ctx.destination);
+      o.start(t); o.stop(t+0.3);
+    }
+  }catch(e){}
+}
+
+function show(id){
+  ['dial','calling','incall'].forEach(function(s){
+    $(s).classList.toggle('hidden', s !== id);
+  });
+}
+function toggleKeypad(){
+  var d = $('dial');
+  var collapsed = d.classList.toggle('kp-collapsed');
+  renderDialCalls();
+}
+
+var tipTimer = null;
+function flashTip(msg){
+  var t = $('numText');
+  t.textContent = msg;
+  t.className = 'num-text placeholder';
+  t.style.color = 'var(--ink-soft)';
+  clearTimeout(tipTimer);
+  tipTimer = setTimeout(function(){ t.style.color = ''; refreshNum(); }, 1800);
+}
+
+/*~ 通话记录 */
+var currentCall = null;
+function loadCalls(){ try { var s = storeGet('call_log'); return s ? JSON.parse(s) : []; } catch(e){ return []; } }
+function saveCalls(arr){ try { storeSet('call_log', JSON.stringify(arr.slice(0,100))); } catch(e){} }
+function fmtCallTime(ts){
+  var d = new Date(ts), now = new Date();
+  var hm = String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+  if (d.getFullYear()===now.getFullYear() && d.getMonth()===now.getMonth() && d.getDate()===now.getDate()) return '今天 ' + hm;
+  var yest = new Date(now.getTime()-86400000);
+  if (yest.getFullYear()===d.getFullYear() && yest.getMonth()===d.getMonth() && yest.getDate()===d.getDate()) return '昨天 ' + hm;
+  return (d.getMonth()+1) + '月' + d.getDate() + '日 ' + hm;
+}
+function fmtDur(sec){
+  if (!sec) return '未接通';
+  var m = Math.floor(sec/60), s = sec%60;
+  return m ? m + '分' + s + '秒' : s + '秒';
+}
+var _callsPage = 0, CALLS_PER = 4;
+function callsCollapsed(){
+  var d = $('dial');
+  return !!(d && d.classList.contains('kp-collapsed'));
+}
+function renderDialCalls(){
+  var el = $('dialCalls');
+  if (!el) return;
+  var arr = loadCalls();
+  if (!arr.length){
+    el.innerHTML = '<div class="calls-empty">还没有通话记录</div>';
+    return;
+  }
+  var total = arr.length, collapsed = callsCollapsed();
+  var per, pages, page;
+  if (collapsed){ per = total; pages = 1; _callsPage = 0; }
+  else {
+    per = CALLS_PER;
+    pages = Math.max(1, Math.ceil(total / per));
+    if (_callsPage > pages - 1) _callsPage = pages - 1;
+    if (_callsPage < 0) _callsPage = 0;
+  }
+  page = arr.slice(_callsPage * per, _callsPage * per + per);
+  var html = page.map(function(c){
+    var loc = c.location || cfg.location || '北京';
+    return '<div class="call-item" onclick="redialCall(' + c.id + ')">' +
+      '<div class="ci-main"><div class="ci-name">' + (c.name || 'AI') + '</div>' +
+      '<div class="ci-sub">' + fmtNum(String(c.number || cfg.number || '5201314')) + ' ' + loc + (c.duration ? ' · ' + fmtDur(c.duration) : '') + '</div></div>' +
+      '<div class="ci-date">' + fmtCallTime(c.time) + '</div>' +
+      '<button class="ci-del" onclick="event.stopPropagation();showCallMenu(event,' + c.id + ')">›</button></div>';
+  }).join('');
+  el.innerHTML = html;
+}
+function callsPage(d){
+  _callsPage += d;
+  if (_callsPage < 0) _callsPage = 0;
+  renderDialCalls();
+}
+function showCallMenu(e, id){
+  var m = $('callMenu');
+  m.innerHTML = '<div onclick="hideCallMenu();redialCall(' + id + ')">回拨</div>' +
+    '<div class="cm-del" onclick="hideCallMenu();delCall(' + id + ')">删除</div>';
+  m.style.display = 'block';
+  var x = Math.min(e.clientX, window.innerWidth - 110);
+  var y = Math.min(e.clientY, window.innerHeight - 120);
+  m.style.left = x + 'px';
+  m.style.top = y + 'px';
+}
+function hideCallMenu(){ var m = $('callMenu'); if (m) m.style.display = 'none'; }
+function delCall(id){
+  saveCalls(loadCalls().filter(function(c){ return c.id !== id; }));
+  renderDialCalls();
+}
+function redialCall(id){
+  var arr = loadCalls(), hit = null;
+  for (var i=0;i<arr.length;i++){ if (arr[i].id === id){ hit = arr[i]; break; } }
+  if (!hit) return;
+  numInput = String(hit.number || cfg.number || '5201314').replace(/\D/g,'');
+  startCall();
+}
+document.addEventListener('click', function(e){
+  if (e.target && e.target.closest && !e.target.closest('#callMenu')) hideCallMenu();
+});
+
+var idleTimer = null, idlePokeBusy = false, _msgPending = false, _vbFail = 0, _sendQueue = [];
+/* ---- 通话状态机 ---- */
+var Phone = (function () {
+  var phase = 'idle';
+  var watcher = null;
+  var ringBack = null;
+
+  function nameOf() { return String(cfg.cardName || '').trim(); }
+  function shell() {
+    var h = window.BellHost;
+    return (h && typeof h.chatWithAgent === 'function') ? h : null;
+  }
+  function strip(s) {
+    return String(s == null ? '' : s)
+      .replace(/<think>[\s\S]*?<\/think>/g, '')
+      .replace(/<[^>]+>/g, '')
+      .trim();
+  }
+  function ask(line, who) {
+    var h = shell();
+    if (!h) return null;
+    var p = { message: line, character_card_name: who };
+    if (cfg.chatId) p.chat_id = cfg.chatId;
+    return h.chatWithAgent(p);
+  }
+  function replyOf(raw) {
+    var o = raw;
+    if (typeof o === 'string') { try { o = JSON.parse(o); } catch (e) { return null; } }
+    if (!o || o.ok === false) return null;
+    if (o.pending || o.data == null) return null;
+    return strip(extractReply(o.data));
+  }
+  function stopWatch() { if (watcher) { clearInterval(watcher); watcher = null; } }
+  function watch(gap, limit, onText, onFail) {
+    var n = 0;
+    stopWatch();
+    watcher = setInterval(function () {
+      n++;
+      if (n > limit) { stopWatch(); onFail(); return; }
+      var t = null;
+      try { t = replyOf(window.BellHost.poll()); } catch (e) { t = null; }
+      if (t === null) return;
+      stopWatch();
+      onText(t);
+    }, gap);
+  }
+
+  function dial() {
+    var target = String(numInput).replace(/\D/g, '');
+    var mine = String(cfg.number || '5201314').replace(/\D/g, '');
+    if (!target) { flashTip('先输入号码再拨号'); return; }
+    if (target !== mine) {
+      busyTone();
+      flashTip('号码不对，打不通');
+      return;
+    }
+    var who = nameOf();
+    if (!who) { flashTip('先在设置里填角色卡名称（Operit 里的）'); return; }
+    if (!shell()) { flashTip('当前环境没有桥，装进 Operit 再用'); return; }
+
+    stopRing(); refreshUI(); show('calling'); startRing();
+    phase = 'ring';
+    ask('［' + whoText() + '］归属地:' + locText() + '，是否接听？她正在拨打给你。要接，就回 [[接听]]，紧接着写你拿起电话后说的头一句；不接，只回 [[挂断]]。', who);
+    watch(1200, 90, function (txt) {
+      if (phase !== 'ring') return;
+      var no = /\[\[挂断\]\]/.test(txt) || (!/\[\[接听\]\]/.test(txt) && /挂断|不接|不想接|没空/.test(txt));
+      var first = txt.replace(/\[\[[^\]]*\]\]/g, '').trim();
+      if (no) { miss(); return; }
+      lift(first);
+    }, function () { if (phase === 'ring') miss(); });
+
+    if (ringBack) clearTimeout(ringBack);
+    ringBack = setTimeout(function () { if (phase === 'ring') miss(); }, 45000);
+  }
+
+  function lift(firstLine, markAccepted) {
+    if (ringBack) { clearTimeout(ringBack); ringBack = null; }
+    stopRing(); connectTone();
+    phase = 'live';
+    window.__nbAcceptedPending = !!markAccepted;
+    connected = true; callStart = Date.now();
+    $('timer').textContent = '00:00';
+    currentCall = { id: Date.now(), name: (cfg.name || 'AI'), number: String(cfg.number || '5201314'), location: cfg.location || '北京', time: Date.now(), duration: 0, lastMsg: '' };
+    $('msgList').innerHTML = '<div class="msg tip">已接通</div>';
+    show('incall');
+    callTimer = setInterval(function () {
+      callSeconds = Math.floor((Date.now() - callStart) / 1000);
+      var mm = String(Math.floor(callSeconds / 60)).padStart(2, '0');
+      var ss = String(callSeconds % 60).padStart(2, '0');
+      $('timer').textContent = mm + ':' + ss;
+    }, 500);
+    if (firstLine) { addMsg('ai', firstLine); attachTrans(firstLine); setTimeout(function () { speak(firstLine); }, 350); }
+    resetIdle();
+  }
+
+  function miss() {
+    phase = 'idle';
+    if (ringBack) { clearTimeout(ringBack); ringBack = null; }
+    stopWatch(); stopRing(); show('dial');
+    var arr = loadCalls();
+    arr.unshift({ id: Date.now(), name: (cfg.name || 'AI'), number: String(cfg.number || '5201314'), location: cfg.location || '北京', time: Date.now(), duration: 0, missed: true, lastMsg: '未接' });
+    saveCalls(arr); renderDialCalls(); refreshNum(); flashTip('对方没有接');
+  }
+
+  function drop(remote) {
+    try { if (window.NB && NB.miniClose) NB.miniClose(); } catch (e) { }
+    phase = 'idle';
+    if (ringBack) { clearTimeout(ringBack); ringBack = null; }
+    stopWatch();
+    stopAudio(); stopRing(); clearInterval(callTimer);
+    if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; }
+    if (_audioEl) { try { _audioEl.pause(); } catch (e) {} }
+    speakStop();
+    var was = connected;
+    connected = false; speaker = false;
+    voiceOff(true);
+    $('muteBtn').classList.remove('on'); $('muteLabel').textContent = '语音';
+    $('speakerBtn').classList.remove('on'); $('speakerLabel').textContent = '免提';
+    $('msgInput').value = '';
+    if (currentCall) {
+      currentCall.duration = Math.floor((Date.now() - callStart) / 1000);
+      var msgs = $('msgList').querySelectorAll('.msg.ai, .msg.me');
+      for (var i = msgs.length - 1; i >= 0; i--) {
+        var t = msgs[i].textContent || '';
+        if (t.indexOf('🎵') === 0) continue;
+        if (t.indexOf('（') === 0 && t.indexOf('）') === t.length - 1) continue;
+        currentCall.lastMsg = t.length > 30 ? t.slice(0, 30) + '…' : t;
+        break;
+      }
+      var arr = loadCalls(), hit = false;
+      for (var j = 0; j < arr.length; j++) { if (arr[j].id === currentCall.id) { arr[j] = currentCall; hit = true; break; } }
+      if (!hit) arr.unshift(currentCall);
+      saveCalls(arr); currentCall = null;
+    }
+    renderDialCalls();
+    if (remote) {
+      var tipEl = document.createElement('div');
+      tipEl.className = 'msg tip';
+      tipEl.textContent = '对方已挂断';
+      $('msgList').appendChild(tipEl);
+      $('msgList').scrollTop = $('msgList').scrollHeight;
+    } else {
+      show('dial'); refreshNum();
+      if (was) notifyHangup();
+    }
+  }
+
+    var incomingLine = '';
+  function clearIncomingFile(){ try { window.BellHost.dataWrite({ key: 'incoming', val: _b64enc('{"ts":0}') }); } catch (e) {} }
+  function checkIncoming() {
+    try {
+      if (!window.BellHost || typeof window.BellHost.dataRead !== 'function') return;
+      var pr = window.BellHost.dataRead({ key: 'incoming' });
+      Promise.resolve(pr).then(function (raw) {
+        var o = raw;
+        if (typeof o === 'string') { try { o = JSON.parse(o); } catch (e) { return; } }
+        if (!o || !o.ok || !o.val) return;
+        var txt = '';
+        try { txt = _b64dec(o.val); } catch (e) { return; }
+        if (!txt) return;
+        var d = {};
+        try { d = JSON.parse(txt); } catch (e) { return; }
+        if (!d || !d.ts) return;
+        if (Date.now() - d.ts > 180000) return;
+        incomingLine = String(d.line || '');
+        try { $('callName').textContent = (d.name || cfg.name || 'AI'); } catch (e) {}
+        var st = document.querySelector('#calling .calling-status');
+        if (st) st.textContent = '来电 · 正在响铃';
+        var ab = $('answerBtn');
+        if (ab) ab.style.display = '';
+        show('calling');
+        phase = 'ring';
+        try { startRing(); } catch (e) {}
+      }, function () {});
+    } catch (e) {}
+  }
+  function answerIncoming(ln) {
+    try { stopRing(); } catch (e) {}
+    var ab = $('answerBtn'); if (ab) ab.style.display = 'none';
+    var l = ln || incomingLine; incomingLine = '';
+    if (l) { clearIncomingFile(); lift(l, true); return; }
+    try {
+      var _pr = window.BellHost.dataRead({ key: 'incoming' });
+      Promise.resolve(_pr).then(function (raw) {
+        var o = raw; if (typeof o === 'string') { try { o = JSON.parse(o); } catch (e) { o = null; } }
+        var txt = ''; try { txt = _b64dec(o.val); } catch (e) {}
+        var d = {}; try { d = JSON.parse(txt); } catch (e) {}
+        clearIncomingFile(); lift(String(d.line || ''), true);
+      }, function () { clearIncomingFile(); lift('', true); });
+    } catch (e) { clearIncomingFile(); lift('', true); }
+  }
+  return { dial: dial, end: drop, incoming: checkIncoming, answer: answerIncoming, phase: function () { return phase; } };
+})();
+
+function startCall() { Phone.dial(); }
+function checkIncoming() { try { Phone.incoming(); } catch (e) {} }
+function answerIncoming(ln) { try { Phone.answer(ln); } catch (e) {} }
+function inviteCall(cardName) { }
+function connectCall(firstLine) { }
+function rejectCall() { }
+
+function resetIdle(){
+  if (idleTimer){ clearTimeout(idleTimer); idleTimer = null; }
+  if (!connected) return;
+  idleTimer = setTimeout(idlePoke, 120000);
+}
+function bindIdleTyping(){
+  var mi = document.getElementById('msgInput');
+  if (!mi || mi.__idleBound) return;
+  mi.__idleBound = 1;
+  mi.addEventListener('input', function(){ try { resetIdle(); } catch(e){} });
+  mi.addEventListener('focus', function(){ try { resetIdle(); } catch(e){} });
+}
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bindIdleTyping); else bindIdleTyping();
+
+function idlePoke(){
+  if (!connected || idlePokeBusy) return;
+  if (_msgPending){ resetIdle(); return; }
+  var cardName = (cfg.cardName || '').trim();
+  if (!cardName || !window.BellHost || typeof window.BellHost.chatWithAgent !== 'function') return;
+  idlePokeBusy = true;
+  var payload = { message: '［通话中］线还连着，她那边静了一阵。你可以先开口；想收线就回 [[挂断]]；暂时没话说就只回 [[沉默]]。', character_card_name: cardName };
+  if (cfg.chatId) payload.chat_id = cfg.chatId;
+  var pr = window.BellHost.chatWithAgent(payload);
+  Promise.resolve(pr).then(function(raw){
+    var o = raw;
+    if (typeof o === 'string'){ try { o = JSON.parse(o); } catch(e){ o = { raw: raw }; } }
+    if (o && o.ok === false){ idlePokeBusy = false; resetIdle(); return; }
+    var tries = 0;
+    var timer = setInterval(function(){
+      tries++;
+      if (!connected || tries > 40){ clearInterval(timer); idlePokeBusy = false; resetIdle(); return; }
+      var pr2 = window.BellHost.poll();
+      Promise.resolve(pr2).then(function(raw2){
+        var o2 = raw2;
+        if (typeof o2 === 'string'){ try { o2 = JSON.parse(o2); } catch(e){ o2 = { raw: raw2 }; } }
+        if (!o2) return;
+        if (o2.ok === false){ clearInterval(timer); idlePokeBusy = false; resetIdle(); return; }
+        if (o2.pending || o2.data === undefined || o2.data === null) return;
+        clearInterval(timer);
+        idlePokeBusy = false;
+        var reply = String(extractReply(o2.data) || '').replace(/<think>[\s\S]*?<\/think>/g, '').replace(/<[^>]+>/g, '').trim();
+        if (!reply || /\[\[沉默\]\]/.test(reply)){ resetIdle(); return; }
+        var hu = /\[\[挂断\]\]/.test(reply);
+        reply = reply.replace(/\[\[[^\]]*\]\]/g, '').trim();
+        if (reply){ addMsg('ai', reply); attachTrans(reply); setTimeout(function(){ speak(reply); }, 350); }
+        if (hu){ setTimeout(function(){ remoteHangUp(); }, reply ? 1600 : 200); return; }
+        resetIdle();
+      }).catch(function(){});
+    }, 1500);
+  }).catch(function(){ idlePokeBusy = false; resetIdle(); });
+}
+function remoteHangUp() {
+  Phone.end(true);
+}
+function notifyHangup() {
+  try {
+    var cardName = (cfg.cardName || '').trim();
+    if (!cardName || !window.BellHost || typeof window.BellHost.chatWithAgent !== 'function') return;
+    var payload = { message: '［已挂断］她把电话按掉了，这通到此为止。', character_card_name: cardName };
+    if (cfg.chatId) payload.chat_id = cfg.chatId;
+    window.BellHost.chatWithAgent(payload);
+  } catch (e) {}
+}
+function hangUp() {
+  Phone.end(false);
+}
+
+function toggleSpeaker(){
+  speaker = !speaker;
+  $('speakerBtn').classList.toggle('on', speaker);
+  $('speakerLabel').textContent = speaker ? '听筒' : '免提';
+}
+
+/* 消息 */
+/* 情绪标签只喂给 TTS，不显示在气泡里 */
+var EMO_RE = /\[(?:sighs?|pause[sd]?|soft(?:ly)?|laughs?|chuckles?|giggles?|whispers?|whispering|breath(?:e|es|ing)?|exhales?|inhales?|coughs?|clears throat|sniffs?|gulps?|sarcastic|deadpan|sad|happy|angry|excited|curious|tired|nervous|surprised|shy|serious|calm|gentle|warm(?:ly)?|dramatic|flatly|quietly|loudly|singing)\]/gi;
+function stripEmo(t){ return String(t || '').replace(EMO_RE, ' ').replace(/[ \t]{2,}/g, ' '); }
+function addMsg(role, text){
+  text = String(text || '').replace(/\[\[[^\]]*\]\]/g, '');
+  text = stripEmo(text).trim();
+  if (!text) return;
+  var d = document.createElement('div');
+  d.className = 'msg ' + role;
+  d.textContent = text;
+  $('msgList').appendChild(d);
+  $('msgList').scrollTop = $('msgList').scrollHeight;
+}
+function autoProbe(){
+  if (!window.BellHost || typeof window.BellHost.probe !== 'function') return;
+  var pr = window.BellHost.probe();
+  Promise.resolve(pr).then(function(raw){
+    var o = raw;
+    if (typeof o === 'string'){ try { o = JSON.parse(o); } catch(e){ return; } }
+    if (!o) return;
+    var w = o.cards || (o.data && o.data.cards);
+    var arr = null;
+    for (var i = 0; i < 8 && w && typeof w === 'object'; i++){
+      if (Array.isArray(w.cards)){ arr = w.cards; break; }
+      if (Array.isArray(w)){ arr = w; break; }
+      if (w.data !== undefined) w = w.data;
+      else if (w.result !== undefined) w = w.result;
+      else break;
+    }
+    if (!arr || !arr.length) return;
+    var name = '';
+    for (var j = 0; j < arr.length; j++){
+      var n = arr[j] && (arr[j].name || arr[j].characterCardName || arr[j].title || '');
+      if (n && String(n).trim()){ name = String(n).trim(); break; }
+    }
+    if (!name) return;
+    if (!(cfg.cardName && String(cfg.cardName).trim())) cfg.cardName = name;
+    var el = document.getElementById('setCardName');
+    if (el && !el.value.trim()) el.value = cfg.cardName;
+    mlog('auto card: ' + name);
+  }).catch(function(){});
+}
+var _recBusy = false, _recStart = 0;
+function recDown(e){
+  if(e && e.preventDefault) e.preventDefault();
+  if(_recBusy) return;
+  if(!window.BellHost || typeof window.BellHost.asrBegin !== 'function'){ addMsg('ai','·没有录音桥'); return; }
+  _recBusy = true; _recStart = Date.now();
+  var b = document.getElementById('micBtn'); if(b) b.classList.add('rec');
+  try { window.BellHost.asrBegin({ key: '', res: '', req: { user:{uid:'bell'}, audio:{format:'pcm',rate:16000,bits:16,channel:1,codec:'raw'}, request:{ model_name:'bigmodel', enable_itn:true, enable_punc:true, enable_nonstream:false, result_type:'full', show_utterances:true } } }); } catch(err){}
+}
+function recUp(e){
+  if(e && e.preventDefault) e.preventDefault();
+  if(!_recBusy) return;
+  _recBusy = false;
+  var b = document.getElementById('micBtn'); if(b) b.classList.remove('rec');
+  if(Date.now() - _recStart < 300){ try { window.BellHost.asrCancel(); } catch(err){} return; }
+  var r = null;
+  try { var pr = window.BellHost.asrEnd(); r = typeof pr === 'string' ? JSON.parse(pr) : pr; } catch(err){}
+  var text = r && r.text ? String(r.text).trim() : '';
+  if(!text){ addMsg('ai','·没听清'); return; }
+  var inp = document.getElementById('msgInput'); if (inp) inp.value = text;
+  sendMsg();
+}
+function shrinkCall(){
+  try {
+    if (!window.NB || !NB.mini) { flashTip('当前版本不支持缩小'); return; }
+    var nm = String((cfg && cfg.name) || '通话中');
+    var st = callStart || Date.now();
+    NB.mini(JSON.stringify({ name: nm, start: st }));
+  } catch (e) { mlog('mini err ' + e); }
+}
+var _speaking = false, _speakEndAt = 0, _speakWatch = null;
+function speakStop(){
+  try { mlog('speakStop voiceOn=' + _voiceOn + ' ampTimer=' + String(_ampTimer)); } catch(e6){}
+  if (_speakWatch){ clearInterval(_speakWatch); _speakWatch = null; }
+  _speaking = false; _speakEndAt = 0;
+  if (_audioEl){ try{ _audioEl.pause(); }catch(e){} }
+  try { if (window.BellHost && typeof window.BellHost.ttsStop === 'function') window.BellHost.ttsStop(); } catch(e8){}
+  if (_voiceOn) setTimeout(voiceBegin, 200);
+}
+function speakHold(ms){
+  try { mlog('speakHold ms=' + ms + ' ampTimer=' + String(_ampTimer)); } catch(e7){}
+  _speaking = true;
+  var end = Date.now() + Math.max(250, ms || 0);
+  if (end > _speakEndAt) _speakEndAt = end;
+  _ampTimer = null;
+  try { window.BellHost.asrCancel(); } catch(err){}
+  if (!_speakWatch) _speakWatch = setInterval(_speakPoll, 150);
+}
+function _speakPoll(){ if (Date.now() >= _speakEndAt) speakStop(); }
+var _voiceOn = false, _ampTimer = null, _voiceStart = 0, _loud = false, _silentMs = 0, _lastLoudAt = 0, _voiceBusy = false;
+function voiceToggle(){ if (_voiceOn) { voiceOff(false); } else { voiceOn(); } }
+function voiceOn(){
+  try { mlog('voiceOn enter'); } catch(e5){}
+  _voiceOn = true; _voiceBusy = false;
+  var b = document.getElementById('muteBtn'); if (b) b.classList.add('on');
+  var lb = document.getElementById('muteLabel'); if (lb) lb.textContent = '聆听中';
+  voiceBegin();
+}
+function voiceOff(silent){
+  try { mlog('voiceOff enter silent=' + silent); } catch(e4){}
+  _voiceOn = false;
+  _ampTimer = null;
+  try { window.BellHost.asrCancel(); } catch(err){}
+  var b = document.getElementById('muteBtn'); if (b) b.classList.remove('on');
+  var lb = document.getElementById('muteLabel'); if (lb) lb.textContent = '语音';
+}
+function voiceBegin(){
+  try { mlog('vb enter on=' + _voiceOn + ' spk=' + _speaking + ' busy=' + _voiceBusy); } catch(e3){}
+  if (!_voiceOn) return;
+  if (_speaking){ setTimeout(voiceBegin, 300); return; }
+  _voiceBusy = false; _loud = false; _silentMs = 0; _voiceStart = Date.now(); _lastLoudAt = Date.now();
+  var r = null;
+  try {
+    var pr = window.BellHost.asrBegin({ key: '', res: '', req: { user:{uid:'bell'}, audio:{format:'pcm',rate:16000,bits:16,channel:1,codec:'raw'}, request:{ model_name:'bigmodel', enable_itn:true, enable_punc:true, enable_nonstream:false, result_type:'full', show_utterances:true } } });
+    r = typeof pr === 'string' ? JSON.parse(pr) : pr;
+  } catch(err){}
+  if (!r || !r.ok){
+    try { mlog('voiceBegin BAD r=' + JSON.stringify(r) + ' keyLen=0 res='); } catch(e0){}
+    _vbFail++;
+    if (_vbFail > 3){
+      _voiceOn = false;
+      var mb0 = document.getElementById('muteBtn'); if (mb0) mb0.classList.remove('on');
+      var lb0 = document.getElementById('muteLabel'); if (lb0) lb0.textContent = '语音';
+      try { mlog('voiceBegin giveup x' + _vbFail); } catch(e0){}
+      return;
+    }
+    if (_voiceOn) setTimeout(voiceBegin, 400);
+    return;
+  }
+  _vbFail = 0;
+  try { mlog('voiceBegin OK local'); } catch(e0){}
+  
+  try {
+    _ampTimer = 1; _tkN = 0;
+    mlog('PROBE timerSet id=' + String(_ampTimer));
+  } catch(eset){ mlog('PROBE timerErr ' + eset); }
+  try { setTimeout(function(){ mlog('PROBE after600 tk=' + _tkN + ' id=' + String(_ampTimer)); }, 600); } catch(e2){}
+}
+function voiceTick(){
+  _tkN = (_tkN || 0) + 1;
+  if (_tkN <= 3) { try { mlog('tickEnter n=' + _tkN + ' on=' + _voiceOn + ' busy=' + _voiceBusy + ' spk=' + _speaking); } catch(e9){} }
+  if (!_voiceOn || _voiceBusy || _speaking) return;
+  var a = 0;
+  try { var sv = window.BellHost.asrAmp(); a = parseInt(typeof sv === 'string' ? sv : String(sv), 10) || 0; } catch(err){ a = 0; }
+  if (_tkN % 2 === 0) { try { mlog('tick a=' + a + ' on=' + _voiceOn + ' busy=' + _voiceBusy + ' spk=' + _speaking + ' loud=' + _loud + ' sil=' + _silentMs + ' dur=' + (Date.now() - _voiceStart)); } catch(e1){} }
+  if (a > 150){ _loud = true; _silentMs = 0; _lastLoudAt = Date.now(); }
+  else if (_loud){ _silentMs = Date.now() - (_lastLoudAt || _voiceStart); }
+  var dur = Date.now() - _voiceStart;
+  if ((_loud && _silentMs >= 1300) || dur > 20000){
+    _voiceBusy = true;
+    _ampTimer = null;
+    voiceFinish(_loud);
+  }
+}
+function voiceFinish(hadVoice){
+  var r = null;
+  try { var pr = window.BellHost.asrEnd(); r = typeof pr === 'string' ? JSON.parse(pr) : pr; } catch(err){}
+  try { mlog('voiceFinish hv=' + hadVoice + ' r=' + JSON.stringify(r)); } catch(e2){}
+  var text = r && r.text ? String(r.text).trim() : '';
+  if (!hadVoice || !text){ if (_voiceOn) setTimeout(voiceBegin, 100); return; }
+  var inp = document.getElementById('msgInput'); if (inp) inp.value = text;
+  sendMsg();
+  if (_voiceOn) setTimeout(voiceBegin, 100);
+}
+function screenTapSend(e){
+  try {
+    var t = e && e.target;
+    if (t && t.closest && t.closest('button, input, textarea, select, .ctrl-btn, #msgInput, #keypad, .kp-toggle, #incallNumber')) return;
+  } catch(err){}
+  if (!_voiceOn || _speaking || _voiceBusy) return;
+  if (!_loud) return;
+  try { mlog('tapSend amp=' + String(_ampTimer) + ' sil=' + _silentMs + ' dur=' + (Date.now() - _voiceStart)); } catch(e1){}
+  _voiceBusy = true; _ampTimer = null; voiceFinish(true);
+}
+(function(){
+  function bind(){ var el = document.getElementById('incall'); if (el) el.addEventListener('click', screenTapSend); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', bind); else bind();
+})();
+
+function sendMsg(){
+  if (!connected) return;
+  var v = $('msgInput').value.trim();
+  if (!v) return;
+  var sendText = v;
+  if (window.__nbAcceptedPending){ window.__nbAcceptedPending = false; sendText = '［已接听］' + v; }
+  addMsg('me', v);
+  $('msgInput').value = '';
+  var cardName = (cfg.cardName || '').trim();
+  if (!cardName){
+    addMsg('ai', '先在设置里填角色卡名称（Operit 里的），就能打给我了');
+    return;
+  }
+  if (_msgPending){ _sendQueue.push(sendText); return; }
+  fireSend(sendText, cardName);
+}
+function fireSend(v, cardName){
+  if (!connected) return;
+  addMsg('ai', '…');
+  _msgPending = true;
+  if (!window.BellHost || typeof window.BellHost.chatWithAgent !== 'function'){
+    replaceLastAi('当前环境没有 BellHost 桥，请装在 Operit 里使用');
+    msgDone(); return;
+  }
+  var payload = { message: v, character_card_name: cardName };
+  if (cfg.chatId) payload.chat_id = cfg.chatId;
+  var pr = window.BellHost.chatWithAgent(payload);
+  Promise.resolve(pr).then(function(raw){
+    var o = raw;
+    if (typeof o === 'string'){ try { o = JSON.parse(o); } catch(e){ o = { raw: raw }; } }
+    if (o && o.ok === false){
+      replaceLastAi(o.error || '（调用失败）');
+      msgDone(); return;
+    }
+    var tries = 0;
+    var timer = setInterval(function(){
+      tries++;
+      if (tries > 90){ clearInterval(timer); replaceLastAi('（等待回复超时）'); msgDone(); return; }
+      if (tries === 1 || tries % 4 === 0) replaceLastAi('对方正在输入' + new Array((tries % 3) + 1).join('.'));
+      var pr2 = window.BellHost.poll();
+      Promise.resolve(pr2).then(function(raw2){
+        var o2 = raw2;
+        if (typeof o2 === 'string'){ try { o2 = JSON.parse(o2); } catch(e){ o2 = { raw: raw2 }; } }
+        if (!o2) return;
+        if (o2.ok === false){
+          clearInterval(timer);
+          replaceLastAi(o2.error || '（调用失败）');
+          msgDone(); return;
+        }
+        if (o2.pending || o2.data === undefined || o2.data === null) return;
+        clearInterval(timer);
+        var reply = extractReply(o2.data);
+        if (reply){
+          reply = String(reply).replace(/<think>[\s\S]*?<\/think>/g, '').replace(/<[^>]+>/g, '').trim();
+          var _hu = /\[\[挂断\]\]/.test(reply);
+          reply = reply.replace(/\[\[挂断\]\]/g, '').trim();
+          if (!reply){ replaceLastAi(_hu ? '（他挂了电话）' : '（没有收到回复）'); msgDone(); if (_hu) setTimeout(function(){ remoteHangUp(); }, 1000); return; }
+          replaceLastAi(reply); attachTrans(reply);
+          setTimeout(function(){ speak(reply); }, 350);
+          if (_hu) setTimeout(function(){ remoteHangUp(); }, 1500);
+          msgDone(); resetIdle();
+        } else {
+          replaceLastAi('（没有收到回复）');
+          msgDone();
+        }
+      }).catch(function(){});
+    }, 1500);
+  }).catch(function(err){ replaceLastAi('通话失败：' + String(err)); msgDone(); });
+}
+function msgDone(){
+  _msgPending = false;
+  if (_sendQueue.length && connected) setTimeout(nextSend, 500);
+}
+function nextSend(){
+  if (!connected || !_sendQueue.length) return;
+  var v = _sendQueue.shift();
+  var cardName = (cfg.cardName || '').trim();
+  if (!cardName) return;
+  fireSend(v, cardName);
+}
+function extractReply(o){
+  if (!o) return '';
+  if (typeof o === 'string'){ try { o = JSON.parse(o); } catch(e){ return o; } }
+  var depth = 0;
+  var BLACK = { via:1, chatId:1, chat_id:1, timestamp:1, ts:1, id:1, role:1, roleName:1, sender:1, name:1, status:1, success:1, ok:1, title:1, __type:1, type:1 };
+  function dig(x){
+    if (depth > 6 || !x) return '';
+    if (typeof x === 'string') return x;
+    if (Array.isArray(x)){
+      var firstText = '';
+      for (var i = 0; i < x.length; i++){
+        var m = x[i];
+        if (m && typeof m === 'object'){
+          var role = String(m.role || m.roleName || m.sender || '').toLowerCase();
+          if (m.content !== undefined && m.content !== null){
+            var r = dig(m.content);
+            if (r && role === 'assistant') return r;
+            if (r && !firstText) firstText = r;
+          }
+        }
+      }
+      if (firstText) return firstText;
+      for (var i = 0; i < x.length; i++){ var r = dig(x[i]); if (r) return r; }
+      return '';
+    }
+    if (typeof x === 'object'){
+      var cand = ['aiResponse','messages','data','reply','answer','content','text','response'];
+      for (var i = 0; i < cand.length; i++){
+        if (x[cand[i]] !== undefined && x[cand[i]] !== null){
+          var r = dig(x[cand[i]]);
+          if (r) return r;
+        }
+      }
+      depth++;
+      for (var k in x){
+        if (x.hasOwnProperty(k) && !BLACK[k]){
+          var r = dig(x[k]);
+          if (r && r.length > 1) { depth--; return r; }
+        }
+      }
+      depth--;
+    }
+    return '';
+  }
+  var t = dig(o);
+  return t && t.length > 1 ? t : '';
+}
+
+/* ===== 英文自动翻译（百度翻译开放平台） ===== */
+function bdMd5(str){
+  var K = [], S = [7,12,17,22,5,9,14,20,4,11,16,23,6,10,15,21];
+  for (var i = 0; i < 64; i++) K[i] = Math.floor(Math.abs(Math.sin(i + 1)) * 4294967296);
+  var s = unescape(encodeURIComponent(String(str)));
+  var n = s.length, words = [];
+  for (i = 0; i < n; i++) words[i >> 2] = (words[i >> 2] || 0) | (s.charCodeAt(i) << ((i % 4) * 8));
+  words[n >> 2] = (words[n >> 2] || 0) | (0x80 << ((n % 4) * 8));
+  var bits = n * 8, total = (((n + 8) >> 6) + 1) * 16;
+  for (i = 0; i < total; i++) if (words[i] === undefined) words[i] = 0;
+  words[total - 2] = bits & 0xFFFFFFFF;
+  words[total - 1] = Math.floor(bits / 4294967296);
+  var a0 = 1732584193, a1 = -271733879, a2 = -1732584194, a3 = 271733878;
+  for (i = 0; i < total; i += 16){
+    var A = a0, B = a1, C = a2, D = a3;
+    for (var j = 0; j < 64; j++){
+      var F, g;
+      if (j < 16){ F = (B & C) | (~B & D); g = j; }
+      else if (j < 32){ F = (D & B) | (~D & C); g = (5 * j + 1) % 16; }
+      else if (j < 48){ F = B ^ C ^ D; g = (3 * j + 5) % 16; }
+      else { F = C ^ (B | ~D); g = (7 * j) % 16; }
+      var tmp = D; D = C; C = B;
+      var sum = (A + F + K[j] + words[i + g]) | 0;
+      var sh = S[(j >> 4) * 4 + (j % 4)];
+      B = (B + ((sum << sh) | (sum >>> (32 - sh)))) | 0;
+      A = tmp;
+    }
+    a0 = (a0 + A) | 0; a1 = (a1 + B) | 0; a2 = (a2 + C) | 0; a3 = (a3 + D) | 0;
+  }
+  function hx(v){ var r = ''; for (var k = 0; k < 4; k++){ var b = (v >>> (k * 8)) & 0xFF; r += ('0' + b.toString(16)).slice(-2); } return r; }
+  return hx(a0) + hx(a1) + hx(a2) + hx(a3);
+}
+function srcLang(text){
+  var t = String(text || '');
+  if (/[\uac00-\ud7af\u1100-\u11ff\u3130-\u318f]/.test(t)) return 'kor';
+  if (/[\u3040-\u30ff]/.test(t)) return 'jp';
+  if (/[\u0400-\u04ff]/.test(t)) return 'ru';
+  if (/[\u0e00-\u0e7f]/.test(t)) return 'th';
+  return '';
+}
+function needTrans(text){
+  var t = String(text || '');
+  if (srcLang(t)) return true;
+  var cjk = (t.match(/[\u4e00-\u9fff\u3400-\u4dbf]/g) || []).length;
+  var lat = (t.match(/[A-Za-z]/g) || []).length;
+  if (lat < 3) return false;
+  return cjk === 0 || lat > cjk * 2;
+}
+function bdParse(txt, cb){
+  var o = null; try { o = JSON.parse(txt); } catch(e){}
+  if (!o) return cb('');
+  if (o.error_code){ mlog('bdTrans err ' + o.error_code); return cb(''); }
+  var arr = o.trans_result || [], out = [];
+  for (var i = 0; i < arr.length; i++) if (arr[i] && arr[i].dst) out.push(arr[i].dst);
+  cb(out.join('\n'));
+}
+var _nbHQ = {}, _nbHN = 0;
+window.__nbHttp = function (id, res) {
+  var f = _nbHQ[id]; delete _nbHQ[id];
+  if (f) { try { f(res); } catch (e) { } }
+};
+function nbHttpGet(url, cb) {
+  var id = '__h' + (++_nbHN);
+  _nbHQ[id] = cb;
+  try { NB.httpGet(String(url), id); }
+  catch (e) { delete _nbHQ[id]; cb('{"ok":false}'); }
+}
+function bdReq(text, from, cb){
+  var t = (cfg && cfg.tts) || {};
+  var appid = String(t.bdAppid || '').trim();
+  var key = String(t.bdKey || '').trim();
+  if (!appid || !key) { mlog('bdTrans no key'); return cb(''); }
+  var salt = String(Date.now());
+  var sign = bdMd5(appid + String(text) + salt + key);
+  var url = 'https://fanyi-api.baidu.com/api/trans/vip/translate?q=' + encodeURIComponent(String(text))
+    + '&from=' + from + '&to=zh&appid=' + encodeURIComponent(appid) + '&salt=' + salt + '&sign=' + sign;
+  function done(txt){ mlog('bdTrans from=' + from + ' ' + String(txt || '')); bdParse(String(txt || ''), cb); }
+  try {
+    if (window.NB && typeof NB.httpGet === 'function'){
+      nbHttpGet(url, function(raw){
+        var o = null;
+        try { o = JSON.parse(raw); } catch(e){ o = null; }
+        if (!o || !o.ok){ mlog('bdTrans http fail ' + String(raw || '')); return cb(''); }
+        done(o.body);
+      });
+      return;
+    }
+  } catch(e){}
+  mlog('bdTrans no bridge, use fetch');
+  fetch(url, { method: 'GET' }).then(function(r){ return r.text(); }).then(done)
+    .catch(function(e){ mlog('bdTrans fail ' + e); cb(''); });
+}
+function bdTranslate(text, cb){
+  var lang = srcLang(text) || 'auto';
+  bdReq(text, lang, function(tr){
+    if (tr) return cb(tr);
+    if (lang === 'auto') return cb('');
+    bdReq(text, 'auto', cb);
+  });
+}
+function attachTrans(text, el){
+  try {
+    text = stripEmo(String(text || '').replace(/\[\[[^\]]*\]\]/g, '')).trim();
+    if (!needTrans(text)){ mlog('trans skip len=' + text.length); return; }
+    var target = el;
+    if (!target){
+      var list = $('msgList').querySelectorAll('.msg.ai');
+      if (list.length) target = list[list.length - 1];
+    }
+    if (!target){ mlog('trans no bubble'); return; }
+    if (target.getAttribute('data-tr') === '1') return;
+    target.setAttribute('data-tr', '1');
+    bdTranslate(text, function(tr){
+      if (!tr){ target.removeAttribute('data-tr'); return; }
+      if (target.querySelector('.tr')) return;
+      var d = document.createElement('div');
+      d.className = 'tr';
+      d.textContent = tr;
+      target.appendChild(d);
+      $('msgList').scrollTop = $('msgList').scrollHeight;
+    });
+  } catch(e){}
+}
+
+function replaceLastAi(text){
+  text = stripEmo(String(text || '')).trim();
+  var list = $('msgList').querySelectorAll('.msg.ai');
+  if (list.length) list[list.length-1].textContent = text;
+  else addMsg('ai', text);
+}
+var _audioEl = null;
+
+/*~ 火山 V3 真流式 PCM：边收边播 */
+var _pcmRate = 24000, _nextTime = 0, _srcs = [];
+function _ac(){
+  try{
+    if (!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume().catch(function(){});
+  }catch(e){}
+  return audioCtx;
+}
+function stopAudio(){
+  for (var i=0;i<_srcs.length;i++){ try{ _srcs[i].stop(); }catch(e){} }
+  _srcs = []; _nextTime = 0;
+}
+function pushPcm(b64){
+  if (!connected) return;
+  var ctx = _ac(); if (!ctx) return;
+  var bin = atob(b64), n = bin.length >> 1;
+  if (!n) return;
+  var f32 = new Float32Array(n);
+  for (var i=0;i<n;i++){
+    var lo = bin.charCodeAt(i*2), hi = bin.charCodeAt(i*2+1);
+    var v = (hi << 8) | lo;
+    if (v >= 32768) v -= 65536;
+    f32[i] = v / 32768;
+  }
+  var buf = ctx.createBuffer(1, n, _pcmRate);
+  buf.getChannelData(0).set(f32);
+  var src = ctx.createBufferSource();
+  src.buffer = buf; src.connect(ctx.destination);
+  var now = ctx.currentTime;
+  if (_nextTime < now + 0.02) _nextTime = now + 0.02;
+  try{ src.start(_nextTime); }catch(e){}
+  _nextTime += buf.duration;
+  _srcs.push(src);
+  speakHold((_nextTime - ctx.currentTime) * 1000);
+}
+function speakVolc(text){
+  if (!connected) return;
+  var t = (cfg.tts && cfg.tts.items && cfg.tts.items.volcano) || {};
+  var key = (t.key || '').trim(), res = (t.res || '').trim(), voice = (t.voice || '').trim();
+  if (!key || !res || !voice) return;
+  stopAudio();
+  speakHold(900);
+  _pcmRate = 24000;
+  var url = 'https://openspeech.bytedance.com/api/v3/tts/unidirectional/sse?api_key=' + encodeURIComponent(key);
+  var body = { user: { uid: 'bell' }, namespace: 'BidirectionalTTS', req_params: { text: text, speaker: voice, audio_params: { format: 'pcm', sample_rate: _pcmRate } } };
+  fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Api-Resource-Id': res }, body: JSON.stringify(body) })
+    .then(function(r){
+      if (!r.ok || !r.body) throw new Error('HTTP ' + r.status);
+      var reader = r.body.getReader(), dec = new TextDecoder(), buf = '';
+      return (function pump(){
+        return reader.read().then(function(d){
+          if (d.done) return;
+          buf += dec.decode(d.value, { stream: true });
+          var lines = buf.split('\n');
+          buf = lines.pop();
+          for (var i=0;i<lines.length;i++){
+            var line = lines[i].replace(/\r$/, '').trim();
+            if (line.indexOf('data:') !== 0) continue;
+            var js = line.slice(5).trim();
+            if (!js) continue;
+            var o = null;
+            try { o = JSON.parse(js); } catch (e) { continue; }
+            if (o && o.data) pushPcm(o.data);
+            if (o && o.code && o.code !== 0 && o.code !== 20000000) console.warn('[bell] volc tts', o.code, o.message);
+          }
+          return pump();
+        });
+      })();
+    })
+    .catch(function(e){ speakStop(); addMsg('ai', '（语音合成失败：' + String(e && e.message ? e.message : e) + '）'); });
+}
+
+function speak(text){
+  try {
+    var t = cfg.tts || {};
+    var prov = t.provider || 'ali';
+    if (prov !== 'eleven') { speakLegacy(text); return; }
+    var it = (t.items && t.items[prov]) || {};
+    var key = String(it.key || '').trim(), model = String(it.model || '').trim(), voice = String(it.voice || '').trim();
+    if (!key || !voice) { speakLegacy(text); return; }
+    if (!window.BellHost || typeof window.BellHost.ttsStream !== 'function'){ speakLegacy(text); return; }
+    var host = String(TTS_BASE.eleven || 'https://api.elevenlabs.io').replace(/\/+$/, '');
+    var u = host + '/v1/text-to-speech/' + encodeURIComponent(voice) + '/stream?output_format=mp3_44100_128';
+    var bd = JSON.stringify({ text: String(text), model_id: model || 'eleven_v4_turbo', voice_settings: { stability: 0.5, similarity_boost: 0.75 } });
+    var sr = window.BellHost.ttsStream({ url: u, key: key, body: bd, rate: 44100 });
+    Promise.resolve(sr).then(function(raw){
+      var o = raw;
+      if (typeof o === 'string'){ try { o = JSON.parse(o); } catch(e){ o = null; } }
+      if (!o || !o.ok){ mlog('ttsStream nostart ' + String((o && o.raw) || (o && o.error) || '')); speakLegacy(text); return; }
+      speakHold(1000);
+      var n = 0;
+      var pt = setInterval(function(){
+        n++;
+        if (!connected || n > 240){ clearInterval(pt); speakStop(); return; }
+        var pv = null, st = '', sv = '';
+        try { pv = window.BellHost.ttsPoll(); } catch(e){ pv = null; }
+        sv = (typeof pv === 'string') ? pv : JSON.stringify(pv || {});
+        if (n <= 8) mlog('ttsPoll ' + String(sv).slice(0, 220));
+        if (sv.indexOf('"state":"playing"') >= 0) st = 'playing';
+        else if (sv.indexOf('"state":"done"') >= 0) st = 'done';
+        else if (sv.indexOf('"state":"error"') >= 0) st = 'error';
+        else if (sv.indexOf('"state":"pending"') >= 0) st = 'pending';
+        if (st === 'playing'){ speakHold(700); return; }
+        if (st === 'pending' && n <= 40){ speakHold(900); return; }
+        clearInterval(pt);
+        if (st === 'error' || st === 'pending'){
+          mlog('ttsStream bail ' + String(sv).slice(0, 200));
+          try { window.BellHost.ttsStop(); } catch (e9) { }
+          speakLegacy(text);
+          return;
+        }
+        speakStop();
+      }, 250);
+    }).catch(function(e){ mlog('ttsStream fail ' + e); speakLegacy(text); });
+  } catch(e) { try { speakLegacy(text); } catch(e2){} }
+}
+function speakLegacy(text){
+  try {
+  var t = cfg.tts || {};
+  var prov = t.provider || 'ali';
+  var it = (t.items && t.items[prov]) || {};
+  var key = (it.key || '').trim(), model = (it.model || '').trim();
+  var voice = (it.voice || '').trim(), res = (it.res || '').trim();
+  var group = (it.group || '').trim();
+  if (!key) return;
+  if (prov === 'minimax' && group && key.indexOf(':') < 0) key = key + ':' + group;
+  if (prov === 'eleven' && !voice) return;
+  if (prov === 'volcano' && voice && res && key.indexOf(':') < 0){ speakVolc(text); return; }
+  var base = TTS_BASE[prov] || TTS_BASE.ali;
+  if (!window.BellHost || typeof window.BellHost.speakText !== 'function') return;
+  var pr;
+  try { pr = window.BellHost.speakText({ text: text, base: base, key: key, model: model, voice: voice }); }
+  catch (e){ return; }
+  function playAudio(url){
+    if (!connected) return;
+    if (_audioEl){ try{ _audioEl.pause(); }catch(e){} }
+    _audioEl = new Audio(url);
+    try {
+      _audioEl.onended = function(){ speakStop(); };
+      _audioEl.onerror = function(){ speakStop(); };
+      _audioEl.ontimeupdate = function(){ if (_speaking) speakHold(700); };
+    } catch(e){}
+    speakHold(1200);
+    _audioEl.play().catch(function(e){
+      addMsg('ai', '（语音播放失败：' + String(e && e.message ? e.message : e) + '）');
+    });
+  }
+  Promise.resolve(pr).then(function(raw){
+    var o = raw;
+    if (typeof o === 'string'){ try { o = JSON.parse(o); } catch(e){ o = { raw: raw }; } }
+    if (!o || o.ok !== true) return;
+    if (o.dataUrl){ playAudio(o.dataUrl); return; }
+    if (o.skipped || !o.pending) return;
+    var tip = null;
+    var n = 0;
+    var pt = setInterval(function(){
+      n++;
+      if (n > 60){ clearInterval(pt); if (tip && tip.parentNode) tip.parentNode.removeChild(tip); return; }
+      var pr2 = window.BellHost.audioPoll();
+      Promise.resolve(pr2).then(function(raw2){
+        var o2 = raw2;
+        if (typeof o2 === 'string'){ try { o2 = JSON.parse(o2); } catch(e){ o2 = { raw: raw2 }; } }
+        if (!o2) return;
+        if (o2.pending || o2.dataUrl === undefined || o2.dataUrl === null) return;
+        clearInterval(pt);
+        if (tip && tip.parentNode) tip.parentNode.removeChild(tip);
+        if (o2.ok !== true || !o2.dataUrl){
+          addMsg('ai', '（语音合成失败：' + (o2.error || 'no data') + '）');
+          return;
+        }
+        playAudio(o2.dataUrl);
+      }).catch(function(){});
+    }, 300);
+  }).catch(function(){});
+  } catch(e){}
+}
+
+/*~ TTS 配置仓 */
+var TtsBox = (function () {
+  var keyDraft = {};
+  var sttDraft = null;
+
+  var bdAppDraft = null, bdKeyDraft = null;
+  function bdAppOf() { return bdAppDraft !== null ? bdAppDraft : (root().bdAppid || ''); }
+  function bdAppSet(v) { bdAppDraft = v; }
+  function bdKeyOf() { return bdKeyDraft !== null ? bdKeyDraft : (root().bdKey || ''); }
+  function bdKeySet(v) { bdKeyDraft = v; }
+
+  function empty() { return { key: '', model: '', voice: '', res: '', group: '' }; }
+  function fresh() { return { provider: 'ali', items: {}, sttKey: '' }; }
+
+  function pickByBase(base) {
+    var b = String(base || '').toLowerCase();
+    if (/mosi|moss/.test(b)) return 'moss';
+    if (/eleven/.test(b)) return 'eleven';
+    if (/openspeech|bytedance|volc/.test(b)) return 'volcano';
+    if (/minimax/.test(b)) return 'minimax';
+    return 'ali';
+  }
+
+  function upgrade(raw) {
+    raw = raw || {};
+    if (raw.items && raw.provider) return raw;
+    var who0 = pickByBase(raw.ttsBase);
+    var bag = {};
+    bag[who0] = { key: raw.ttsKey || '', model: raw.ttsModel || '', voice: raw.voice || '', res: raw.res || '', group: raw.group || '' };
+    return { provider: who0, items: bag, sttKey: raw.sttKey || '' };
+  }
+
+  function root() {
+    if (!cfg.tts || !cfg.tts.items) cfg.tts = upgrade(cfg.tts || {});
+    if (!cfg.tts.items) cfg.tts.items = {};
+    if (!cfg.tts.provider) cfg.tts.provider = 'ali';
+    return cfg.tts;
+  }
+
+  function who() { return root().provider; }
+
+  function slot(p) {
+    var r = root();
+    if (!r.items[p]) r.items[p] = empty();
+    return r.items[p];
+  }
+
+  function mask(k) {
+    k = String(k || '');
+    if (!k) return '';
+    var head = k.length <= 8 ? k.slice(0, 2) : k.slice(0, 3);
+    var stars = Math.max(k.length <= 8 ? 3 : 10, k.length - head.length - 2);
+    var out = head;
+    for (var i = 0; i < stars; i++) out += '*';
+    return out + k.slice(-2);
+  }
+
+  function keyOf(p) { return keyDraft[p] !== undefined ? keyDraft[p] : (slot(p).key || ''); }
+  function keySet(p, v) { keyDraft[p] = v; }
+  function sttOf() { return sttDraft !== null ? sttDraft : (root().sttKey || ''); }
+  function sttSet(v) { sttDraft = v; }
+
+  function fieldsToModel(p) {
+    var it = slot(p);
+    if (keyDraft[p] !== undefined) it.key = String(keyDraft[p]);
+    var em = $('setTtsModel'), ev = $('setTtsVoice'), er = $('setTtsRes'), eg = $('setTtsGroup');
+    if (em) it.model = em.value.trim();
+    if (ev) it.voice = ev.value.trim();
+    if (er && p === 'volcano') it.res = er.value.trim();
+    if (eg) it.group = eg.value.trim();
+  }
+
+  function paint(p) {
+    var it = slot(p);
+    if (keyDraft[p] === undefined) keyDraft[p] = it.key || '';
+    $('setTtsKey2').value = keyDraft[p] ? mask(keyDraft[p]) : '';
+    $('setTtsModel').value = it.model || '';
+    $('setTtsVoice').value = it.voice || '';
+    var er = $('setTtsRes');
+    er.value = it.res || '';
+    er.parentElement.style.display = (p === 'volcano' ? '' : 'none');
+    var eg = $('setTtsGroup');
+    if (eg) {
+      eg.value = it.group || '';
+      eg.parentElement.style.display = (p === 'minimax' ? '' : 'none');
+    }
+    var btns = document.querySelectorAll('#ttsProvRow .prov-btn');
+    Array.prototype.forEach.call(btns, function (b) {
+      b.className = 'prov-btn' + (b.getAttribute('data-p') === p ? ' on' : '');
+    });
+  }
+
+  function switchTo(p) {
+    fieldsToModel(who());
+    root().provider = p;
+    paint(p);
+  }
+
+  function resetDrafts() { keyDraft = {}; sttDraft = null; bdAppDraft = null; bdKeyDraft = null; }
+
+  function saveAll() {
+    fieldsToModel(who());
+    root().sttKey = String(sttOf()).trim();
+    root().bdAppid = String(bdAppOf()).trim();
+    root().bdKey = String(bdKeyOf()).trim();
+  }
+
+  return { upgrade: upgrade, who: who, slot: slot, mask: mask,
+           keyOf: keyOf, keySet: keySet, sttOf: sttOf, sttSet: sttSet,
+           bdAppOf: bdAppOf, bdAppSet: bdAppSet, bdKeyOf: bdKeyOf, bdKeySet: bdKeySet,
+           paint: paint, switchTo: switchTo, resetDrafts: resetDrafts, saveAll: saveAll };
+})();
+
+function migTts(t) { return TtsBox.upgrade(t); }
+function maskKey(k) { return TtsBox.mask(k); }
+
+/*~ 供应商按钮与 Key 输入框 */
+(function () {
+  var row = $('ttsProvRow');
+  if (row) {
+    row.addEventListener('click', function (e) {
+      var b = e.target && e.target.closest ? e.target.closest('.prov-btn') : null;
+      if (!b) return;
+      TtsBox.switchTo(b.getAttribute('data-p'));
+    });
+  }
+  var k2 = $('setTtsKey2');
+  if (k2) {
+    k2.addEventListener('focus', function () { this.value = TtsBox.keyOf(TtsBox.who()); });
+    k2.addEventListener('input', function () { TtsBox.keySet(TtsBox.who(), this.value); });
+    k2.addEventListener('blur', function () {
+      TtsBox.keySet(TtsBox.who(), this.value);
+      this.value = TtsBox.mask(this.value);
+    });
+  }
+
+  var k4 = $('setBdAppid');
+  if (k4) {
+    k4.addEventListener('focus', function () { this.value = TtsBox.bdAppOf(); });
+    k4.addEventListener('blur', function () { TtsBox.bdAppSet(this.value); });
+  }
+  var k5 = $('setBdKey');
+  if (k5) {
+    k5.addEventListener('focus', function () { this.value = TtsBox.bdKeyOf(); });
+    k5.addEventListener('blur', function () {
+      TtsBox.bdKeySet(this.value);
+      this.value = this.value ? TtsBox.mask(this.value) : '';
+    });
+  }
+})();
+
+/*~ 设置面板 */
+var Settings = (function () {
+  function ensureProfiles() {
+    if (!cfg.profiles || typeof cfg.profiles !== 'object') cfg.profiles = {};
+    var p = cfg.profiles;
+    if (!p.main) p.main = {};
+    if (!p.virtual) p.virtual = {};
+    if (!cfg.active) cfg.active = 'main';
+    if (!cfg.pfInit) {
+      p.main = { name: cfg.name || '', number: cfg.number || '', location: cfg.location || '', cardName: cfg.cardName || '', chatId: cfg.chatId || '' };
+      cfg.pfInit = 1;
+    }
+  }
+  function activeKey() { return cfg.active === 'virtual' ? 'virtual' : 'main'; }
+  function readFields() {
+    var p = cfg.profiles[activeKey()];
+    p.name = $('setName').value.trim();
+    p.number = $('setNumber').value.trim();
+    p.location = $('setLocation').value.trim();
+    p.cardName = $('setCardName').value.trim();
+    p.chatId = $('setChatId').value.trim();
+  }
+  function applyProfile() {
+    var p = cfg.profiles[activeKey()];
+    cfg.name = p.name || 'AI';
+    var d = String(p.number || '').replace(/\D/g, '').slice(0, 11);
+    cfg.number = d || '5201314';
+    cfg.location = p.location || '北京';
+    cfg.cardName = p.cardName || '';
+    cfg.chatId = p.chatId || '';
+  }
+  function fillFields() {
+    $('setUserName').value = cfg.userName || '';
+    $('setUserLoc').value = cfg.userLoc || '';
+    $('setName').value = cfg.name || '';
+    $('setNumber').value = cfg.number || '';
+    $('setLocation').value = cfg.location || '';
+    $('setCardName').value = cfg.cardName || '';
+    $('setChatId').value = cfg.chatId || '';
+    paintProf();
+  }
+  function paintProf() {
+    ['main', 'virtual'].forEach(function (k) {
+      var b = $('pf-' + k);
+      if (b) b.className = 'mode-btn' + (activeKey() === k ? ' on' : '');
+    });
+  }
+  function switchProfile(k) {
+    ensureProfiles();
+    cfg.active = (k === 'virtual') ? 'virtual' : 'main';
+    readFields();
+    fillFields();
+    refreshUI();
+    storeSet('app_cfg', JSON.stringify(cfg));
+  }
+  function open() {
+    Display.wipe();
+    Display.paint();
+    ensureProfiles();
+    fillFields();
+    TtsBox.resetDrafts();
+    var sk = TtsBox.sttOf();
+    var ba = TtsBox.bdAppOf();
+    if ($('setBdAppid')) $('setBdAppid').value = ba || '';
+    var bk = TtsBox.bdKeyOf();
+    if ($('setBdKey')) $('setBdKey').value = bk ? TtsBox.mask(bk) : '';
+    try { shSync(); } catch (e) {}
+
+    TtsBox.paint(TtsBox.who());
+    try { paintRing(); } catch (e) {}
+    $('preview').src = cfg.avatar;
+    $('overlay').classList.add('show');
+  }
+  function close() {
+    $('overlay').classList.remove('show');
+    Display.wipe();
+    Display.paint();
+  }
+  function save() {
+    ensureProfiles();
+    cfg.userName = $('setUserName').value.trim();
+    cfg.userLoc = $('setUserLoc').value.trim();
+    cfg.name = $('setName').value.trim() || 'AI';
+    var digits = $('setNumber').value.replace(/\D/g, '').slice(0, 11);
+    cfg.number = digits || '5201314';
+    cfg.location = $('setLocation').value.trim() || '北京';
+    cfg.mode = Display.modeNow();
+    var bgW = Display.bgWantRef();
+    cfg.customBg = bgW !== null ? bgW : (cfg.customBg || '');
+    cfg.cardName = $('setCardName').value.trim();
+    cfg.chatId = $('setChatId').value.trim();
+    TtsBox.saveAll();
+    storeSet('app_cfg', JSON.stringify(cfg));
+    refreshUI();
+    close();
+  }
+  function avatarReset() {
+    cfg.avatar = DEF_AVATAR;
+    $('preview').src = cfg.avatar;
+    storeSet('app_cfg', JSON.stringify(cfg));
+    refreshUI();
+  }
+  function adoptAvatar(url) {
+    cfg.avatar = url;
+    $('preview').src = cfg.avatar;
+    storeSet('app_cfg', JSON.stringify(cfg));
+    refreshUI();
+  }
+  return { open: open, close: close, save: save, switchProfile: switchProfile,
+           avatarReset: avatarReset, adoptAvatar: adoptAvatar };
+})();
+
+function pickProfile(k) { Settings.switchProfile(k); }
+function openSettings() { Settings.open(); }
+function closeSettings() { Settings.close(); }
+function saveSettings() { Settings.save(); }
+function resetAvatar() { Settings.avatarReset(); }
+
+/*~ 来电铃声 */
+function paintRing(){
+  var e = $('ringHint');
+  if (!e) return;
+  e.textContent = cfg.ring ? '当前：自定义铃声' : '当前：系统默认铃声';
+}
+function pickRing(){
+  try { NB.pickRing(); } catch(e){ return; }
+  var n = 0;
+  var t = setInterval(function(){
+    n++;
+    if (n > 150) { clearInterval(t); return; }
+    var s = '__wait';
+    try { s = NB.ringPicked(); } catch(e){ return; }
+    if (s === '__wait' || s === null || s === undefined) return;
+    clearInterval(t);
+    if (s === '__cancel') return;
+    cfg.ring = String(s || '');
+    storeSet('app_cfg', JSON.stringify(cfg));
+    paintRing();
+  }, 400);
+}
+function resetRing(){
+  cfg.ring = '';
+  storeSet('app_cfg', JSON.stringify(cfg));
+  paintRing();
+}
+
+$('fileAvatar').addEventListener('change', function () {
+  var f = this.files && this.files[0];
+  if (!f) return;
+  var rd = new FileReader();
+  rd.onload = function (ev) { Settings.adoptAvatar(ev.target.result); };
+  rd.readAsDataURL(f);
+  this.value = '';
+});
+
+loadCfg();
+renderDialCalls();
+/* 通话记录：手动接管滑动（WebView 不认原生 overflow 滚动） */
+(function(){
+  function bindCallsScroll(){
+    var el = document.getElementById('dialCalls');
+    if (!el || el.__sb) return;
+    el.__sb = true;
+    var sy = 0, st = 0, on = false;
+    el.addEventListener('touchstart', function(e){
+      if (e.touches.length !== 1) return;
+      on = true; sy = e.touches[0].clientY; st = el.scrollTop;
+    }, { passive: true });
+    el.addEventListener('touchmove', function(e){
+      if (!on || e.touches.length !== 1) return;
+      el.scrollTop = st + (sy - e.touches[0].clientY);
+      if (e.cancelable) e.preventDefault();
+    }, { passive: false });
+    el.addEventListener('touchend', function(){ on = false; });
+    el.addEventListener('touchcancel', function(){ on = false; });
+  }
+  bindCallsScroll();
+  window.__bindCallsScroll = bindCallsScroll;
+})();
+applyMode();
+autoProbe();
+function syncFromFile(){
+  if (!window.BellHost || typeof window.BellHost.dataRead !== 'function') return;
+  ['app_cfg','call_log'].forEach(function(k){
+    try {
+      var pr = window.BellHost.dataRead({ key: k });
+      Promise.resolve(pr).then(function(raw){
+        var o = raw;
+        if (typeof o === 'string'){ try { o = JSON.parse(o); } catch(e){ o = null; } }
+        if (!o || !o.ok) return;
+        if (o.val){
+          var txt = _b64dec(o.val);
+          if (!txt) return;
+          if (txt === storeGet(k)) return;
+          storeSet(k, txt);
+          if (k === 'app_cfg'){ try { loadCfg(); } catch(e){} }
+          if (k === 'call_log'){ try { renderDialCalls(); } catch(e){} }
+        } else {
+          var cur = storeGet(k);
+          if (cur){ try { window.BellHost.dataWrite({ key: k, val: _b64enc(cur) }); } catch(e){} }
+        }
+      });
+    } catch(e){}
+  });
+}
+syncFromFile();
+setTimeout(function(){ checkIncoming(); }, 800);
+var _lastRingTs = 0, _lastResTs = 0;
+function ringPoll(){
+  if (!window.BellHost || typeof window.BellHost.dataRead !== 'function' || typeof window.BellHost.ringShow !== 'function') return;
+  try {
+    Promise.resolve(window.BellHost.dataRead({ key: 'incoming' })).then(function(raw){
+      var o = raw;
+      if (typeof o === 'string'){ try { o = JSON.parse(o); } catch(e){ return; } }
+      if (!o || !o.ok || !o.val) return;
+      var txt = ''; try { txt = _b64dec(o.val); } catch(e){ return; }
+      var d = {}; try { d = JSON.parse(txt); } catch(e){ return; }
+      if (!d || !d.ts || d.ts <= _lastRingTs) return;
+      if (Date.now() - d.ts > 180000) return;
+      _lastRingTs = d.ts;
+      try { window.BellHost.ringShow({ name: d.name || cfg.name || 'AI', line: d.line || '', timeout: 40 }); } catch(e){}
+    }, function(){});
+  } catch(e){}
+}
+function ringResultPoll(){
+  if (!window.BellHost || typeof window.BellHost.ringResult !== 'function') return;
+  try {
+    Promise.resolve(window.BellHost.ringResult()).then(function(raw){
+      var s = String(raw || '');
+      if (s.indexOf('{') !== 0) return;
+      var o = null; try { o = JSON.parse(s); } catch(e){ return; }
+      if (!o || !o.ts || o.ts <= _lastResTs) return;
+      _lastResTs = o.ts;
+      if (o.act !== 'accept') return;
+      try { window.BellHost.dataWrite({ key: 'incoming', val: _b64enc('{"ts":0}') }); } catch(e){}
+      var l = String(o.line || incomingLine || '');
+      incomingLine = '';
+      try { show('calling'); } catch(e){}
+      try { lift(l, true); } catch(e){}
+    }, function(){});
+  } catch(e){}
+}
+/* 原生 watch 接管轮询 */
+setInterval(ringResultPoll, 1500);
+document.addEventListener('visibilitychange', function(){ if (!document.hidden) { ringResultPoll(); } });
+
+
+</script>
+</body>
+</html>

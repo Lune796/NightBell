@@ -1,0 +1,7 @@
+*.apk
+*.idsig
+*.dex
+*.flata
+obj/
+lib/
+*.keystore
